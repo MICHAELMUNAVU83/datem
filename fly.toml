@@ -1,0 +1,32 @@
+# fly.toml app configuration file for the Datem Phoenix app.
+#
+# This is a template — replace `app` with your actual Fly.io app name
+# (created via `fly launch` or `fly apps create`) before deploying.
+#
+# See https://fly.io/docs/reference/configuration/ for details.
+
+app = "datem"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+
+[build]
+
+[env]
+  PHX_HOST = "datem.fly.dev"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[deploy]
+  release_command = "/app/bin/migrate"

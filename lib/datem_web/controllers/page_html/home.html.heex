@@ -1,0 +1,66 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <.header>
+    Dashboard
+    <:subtitle>Welcome back. Here's what's happening today.</:subtitle>
+    <:actions>
+      <.button variant="secondary">Export</.button>
+      <.button variant="primary">
+        <.icon name="hero-plus" class="size-4" /> Register visitor
+      </.button>
+    </:actions>
+  </.header>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <.stat_card
+      label="On-site now"
+      value="0"
+      icon="hero-users"
+      hint="Visitors currently checked in"
+    />
+    <.stat_card label="Active events" value="0" icon="hero-ticket" hint="Running today" />
+    <.stat_card
+      label="Denied scans"
+      value="0"
+      icon="hero-shield-exclamation"
+      hint="Last 24 hours"
+    />
+  </div>
+
+  <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <.card title="Recent activity" class="lg:col-span-2">
+      <.table id="recent-activity" rows={[]}>
+        <:col :let={row} label="Subject">{row.subject}</:col>
+        <:col :let={row} label="Checkpoint">{row.checkpoint}</:col>
+        <:col :let={row} label="Result">{row.result}</:col>
+        <:col :let={row} label="Time">{row.time}</:col>
+        <:empty>No scans yet. Activity will appear here in real time.</:empty>
+      </.table>
+    </.card>
+
+    <.card title="Scan result states">
+      <div class="flex flex-wrap gap-2">
+        <.badge kind={:success}>Accepted</.badge>
+        <.badge kind={:warning}>Duplicate</.badge>
+        <.badge kind={:warning}>Expired</.badge>
+        <.badge kind={:danger}>Denied</.badge>
+        <.badge kind={:neutral}>Idle</.badge>
+      </div>
+      <.button class="mt-6 w-full" variant="secondary" phx-click={show_modal("welcome-modal")}>
+        Preview modal
+      </.button>
+    </.card>
+  </div>
+
+  <.modal id="welcome-modal">
+    <h2 id="welcome-modal-title" class="text-base font-semibold text-gray-900">
+      Welcome to Datem
+    </h2>
+    <p class="mt-2 text-sm text-gray-600">
+      This is the shared modal component, ready for confirmations and quick forms across the app.
+    </p>
+    <div class="mt-6 flex justify-end gap-3">
+      <.button variant="secondary" phx-click={hide_modal("welcome-modal")}>Close</.button>
+      <.button variant="primary" phx-click={hide_modal("welcome-modal")}>Got it</.button>
+    </div>
+  </.modal>
+</Layouts.app>
