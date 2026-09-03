@@ -138,8 +138,8 @@ Phased task breakdown for building Datem in **Phoenix LiveView + Elixir + Tailwi
 - [ ] Empty states, loading states, and error states across the app.
 - [ ] Accessibility pass (contrast, focus states, keyboard nav) — keep the blue/white palette accessible.
 - [ ] Performance: scan-to-result latency, index review on `organization_id` and hot lookups.
-- [ ] Seed/demo data + a scripted end-to-end demo (register → issue QR → scan in → lunch scan → scan out).
-- [ ] Documentation: admin guide, operator scanning guide, GS1 prefix setup guide.
+- [x] Seed/demo data + a scripted end-to-end demo (register → issue QR → scan in → lunch scan → scan out). `priv/repo/seeds.exs` builds two organisations (one with a licensed GS1 prefix, one on the internal fallback, so tenant isolation is demoable), sites/access points, visitors with passes, a vehicle, an event with ticket types + join link, and four checkpoints. `priv/repo/demo.exs` (`mix demo`) drives the whole path through the same context functions the LiveViews call, printing each step plus the interesting denials (lunch outside its window, duplicate lunch, VIP-only, cross-tenant QR). **Not yet executed:** this sandbox blocks TCP sockets, so `mix` itself won't start here — both scripts were syntax-checked and formatted with the project's formatter only. Run `mix ecto.reset && mix demo` locally and flag anything that fails.
+- [x] Documentation: admin guide, operator scanning guide, GS1 prefix setup guide. In [docs/](docs/), indexed by `docs/README.md` and linked from the root README.
 - [ ] Production deploy, backups, monitoring, and alerting.
 
 ---
