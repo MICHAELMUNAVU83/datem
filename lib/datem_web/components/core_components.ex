@@ -105,7 +105,8 @@ defmodule DatemWeb.CoreComponents do
       <.button phx-click="go" variant="primary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
+  attr :rest, :global,
+    include: ~w(href navigate patch method download name value disabled type)
   attr :class, :any, default: nil, doc: "extra classes merged with the variant's base styling"
   attr :variant, :string, default: "primary", values: ~w(primary secondary danger)
   slot :inner_block, required: true
@@ -618,6 +619,7 @@ defmodule DatemWeb.CoreComponents do
   attr :id, :string, required: true
   attr :show, :boolean, default: false
   attr :on_cancel, JS, default: %JS{}
+  attr :class, :any, default: "max-w-md", doc: "width classes for the dialog panel"
   slot :inner_block, required: true
 
   def modal(assigns) do
@@ -648,7 +650,10 @@ defmodule DatemWeb.CoreComponents do
             phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
             phx-key="escape"
             phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-            class="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl transition"
+            class={[
+              "relative w-full rounded-xl border border-gray-200 bg-white p-6 shadow-xl transition",
+              @class
+            ]}
           >
             <button
               type="button"

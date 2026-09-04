@@ -13,6 +13,9 @@ defmodule DatemWeb.AccessLive.Sites do
       <.header>
         Sites
         <:subtitle>Physical locations, each identified by a GS1 GLN</:subtitle>
+        <:actions>
+          <.button phx-click="new">Add a site</.button>
+        </:actions>
       </.header>
 
       <.table id="sites" rows={@sites}>
@@ -22,22 +25,22 @@ defmodule DatemWeb.AccessLive.Sites do
         <:action :let={site}>
           <.link phx-click="edit" phx-value-id={site.id}>Edit</.link>
         </:action>
-        <:empty>No sites yet. Add your first one below.</:empty>
+        <:empty>No sites yet. Add your first one with the button above.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="site-modal" show on_cancel={JS.push("close_form")}>
+        <.header>{if @editing, do: "Edit site", else: "Add a site"}</.header>
 
-      <.header>{if @editing, do: "Edit site", else: "Add a site"}</.header>
-
-      <.form for={@form} id="site_form" phx-submit="save" phx-change="validate">
-        <.input field={@form[:name]} type="text" label="Name" required />
-        <.input field={@form[:address]} type="text" label="Address" />
-        <.input field={@form[:capacity]} type="number" label="Capacity (for alerts, optional)" />
-        <div class="mt-4 flex gap-3">
-          <.button phx-disable-with="Saving...">Save</.button>
-          <.button :if={@editing} type="button" phx-click="cancel_edit">Cancel</.button>
-        </div>
-      </.form>
+        <.form for={@form} id="site_form" phx-submit="save" phx-change="validate">
+          <.input field={@form[:name]} type="text" label="Name" required />
+          <.input field={@form[:address]} type="text" label="Address" />
+          <.input field={@form[:capacity]} type="number" label="Capacity (for alerts, optional)" />
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Saving...">Save</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -47,6 +50,7 @@ defmodule DatemWeb.AccessLive.Sites do
     {:ok,
      socket
      |> assign(:editing, false)
+     |> assign(:show_form, false)
      |> assign(:site, nil)
      |> assign_sites()
      |> assign_form(Access.change_site(%Site{}))}
@@ -76,14 +80,21 @@ defmodule DatemWeb.AccessLive.Sites do
         {:noreply,
          socket
          |> put_flash(:info, "Site saved.")
-         |> assign(:editing, false)
-         |> assign(:site, nil)
-         |> assign_sites()
-         |> assign_form(Access.change_site(%Site{}))}
+         |> close_form()
+         |> assign_sites()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing, false)
+     |> assign(:show_form, true)
+     |> assign(:site, nil)
+     |> assign_form(Access.change_site(%Site{}))}
   end
 
   def handle_event("edit", %{"id" => id}, socket) do
@@ -92,16 +103,19 @@ defmodule DatemWeb.AccessLive.Sites do
     {:noreply,
      socket
      |> assign(:editing, true)
+     |> assign(:show_form, true)
      |> assign(:site, site)
      |> assign_form(Access.change_site(site))}
   end
 
-  def handle_event("cancel_edit", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:editing, false)
-     |> assign(:site, nil)
-     |> assign_form(Access.change_site(%Site{}))}
+  def handle_event("close_form", _params, socket), do: {:noreply, close_form(socket)}
+
+  defp close_form(socket) do
+    socket
+    |> assign(:editing, false)
+    |> assign(:show_form, false)
+    |> assign(:site, nil)
+    |> assign_form(Access.change_site(%Site{}))
   end
 
   defp current_site(socket), do: socket.assigns.site || %Site{}

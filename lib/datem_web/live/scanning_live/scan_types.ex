@@ -23,6 +23,7 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
         Scan types
         <:subtitle>Checkpoints operators can scan at, and the rules for each</:subtitle>
         <:actions>
+          <.button phx-click="new">Add a scan type</.button>
           <.link navigate={~p"/checkpoints"}><.button>Start scanning</.button></.link>
         </:actions>
       </.header>
@@ -49,70 +50,76 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
             {if st.active, do: "Switch off", else: "Switch on"}
           </.link>
         </:action>
-        <:empty>No scan types yet. Define your first checkpoint below.</:empty>
+        <:empty>No scan types yet. Define your first checkpoint with the button above.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal
+        :if={@show_form}
+        id="scan-type-modal"
+        show
+        class="max-w-2xl"
+        on_cancel={JS.push("close_form")}
+      >
+        <.header>{if @editing, do: "Edit scan type", else: "Add a scan type"}</.header>
 
-      <.header>{if @editing, do: "Edit scan type", else: "Add a scan type"}</.header>
-
-      <.form for={@form} id="scan_type_form" phx-submit="save" phx-change="validate">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <.input field={@form[:name]} type="text" label="Name" required />
-          <.input
-            :if={!@editing}
-            name="scan_type[scope]"
-            id="scan_type_scope"
-            value={@scope_value}
-            type="select"
-            label="Event or site"
-            prompt="Choose where this checkpoint lives"
-            options={@scope_options}
-            required
-          />
-          <.input field={@form[:active_from]} type="datetime-local" label="Opens at (optional)" />
-          <.input field={@form[:active_to]} type="datetime-local" label="Closes at (optional)" />
-        </div>
-
-        <.inputs_for :let={rules} field={@form[:rules]}>
-          <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-            <p class="mb-3 text-sm font-medium text-gray-900">Rules</p>
-
+        <.form for={@form} id="scan_type_form" phx-submit="save" phx-change="validate">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <.input field={@form[:name]} type="text" label="Name" required />
             <.input
-              field={rules[:once_per_subject]}
-              type="checkbox"
-              label="Once per attendee (a second scan is a duplicate)"
+              :if={!@editing}
+              name="scan_type[scope]"
+              id="scan_type_scope"
+              value={@scope_value}
+              type="select"
+              label="Event or site"
+              prompt="Choose where this checkpoint lives"
+              options={@scope_options}
+              required
             />
-            <.input
-              field={rules[:requires_check_in]}
-              type="checkbox"
-              label="Requires the attendee to be checked in to the event"
-            />
-
-            <div class="mt-3 grid gap-4 sm:grid-cols-2">
-              <.input
-                field={rules[:requires_prior_scan_type_id]}
-                type="select"
-                label="Requires a prior scan at"
-                prompt="No prior scan required"
-                options={@prior_scan_options}
-              />
-              <.input
-                field={rules[:allowed_ticket_type_ids]}
-                type="select"
-                multiple
-                label="Allowed ticket types (none selected = all)"
-                options={@ticket_type_options}
-              />
-            </div>
+            <.input field={@form[:active_from]} type="datetime-local" label="Opens at (optional)" />
+            <.input field={@form[:active_to]} type="datetime-local" label="Closes at (optional)" />
           </div>
-        </.inputs_for>
 
-        <div class="mt-4 flex gap-3">
-          <.button phx-disable-with="Saving...">Save</.button>
-          <.button :if={@editing} type="button" phx-click="cancel_edit">Cancel</.button>
-        </div>
-      </.form>
+          <.inputs_for :let={rules} field={@form[:rules]}>
+            <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+              <p class="mb-3 text-sm font-medium text-gray-900">Rules</p>
+
+              <.input
+                field={rules[:once_per_subject]}
+                type="checkbox"
+                label="Once per attendee (a second scan is a duplicate)"
+              />
+              <.input
+                field={rules[:requires_check_in]}
+                type="checkbox"
+                label="Requires the attendee to be checked in to the event"
+              />
+
+              <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                <.input
+                  field={rules[:requires_prior_scan_type_id]}
+                  type="select"
+                  label="Requires a prior scan at"
+                  prompt="No prior scan required"
+                  options={@prior_scan_options}
+                />
+                <.input
+                  field={rules[:allowed_ticket_type_ids]}
+                  type="select"
+                  multiple
+                  label="Allowed ticket types (none selected = all)"
+                  options={@ticket_type_options}
+                />
+              </div>
+            </div>
+          </.inputs_for>
+
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Saving...">Save</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -122,6 +129,7 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
     {:ok,
      socket
      |> assign(:editing, false)
+     |> assign(:show_form, false)
      |> assign(:scan_type, nil)
      |> assign(:scope_value, nil)
      |> assign_options()
@@ -170,12 +178,17 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
     {:noreply,
      socket
      |> assign(:editing, true)
+     |> assign(:show_form, true)
      |> assign(:scan_type, scan_type)
      |> assign(:scope_value, scope_value(scan_type))
      |> assign_form(Scanning.change_scan_type(scan_type))}
   end
 
-  def handle_event("cancel_edit", _params, socket), do: {:noreply, reset_form(socket)}
+  def handle_event("new", _params, socket) do
+    {:noreply, socket |> reset_form() |> assign(:show_form, true)}
+  end
+
+  def handle_event("close_form", _params, socket), do: {:noreply, reset_form(socket)}
 
   def handle_event("toggle", %{"id" => id}, socket) do
     scope = socket.assigns.current_scope
@@ -208,6 +221,7 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
   defp reset_form(socket) do
     socket
     |> assign(:editing, false)
+    |> assign(:show_form, false)
     |> assign(:scan_type, nil)
     |> assign(:scope_value, nil)
     |> assign_form(Scanning.change_scan_type(%ScanType{}))

@@ -14,6 +14,7 @@ defmodule DatemWeb.AccessLive.Visitors do
         Visitors
         <:subtitle>Register walk-ins, issue passes, or share a pre-registration link</:subtitle>
         <:actions>
+          <.button phx-click="new">Register a walk-in</.button>
           <.button phx-click="new_link">Create pre-registration link</.button>
         </:actions>
       </.header>
@@ -45,31 +46,32 @@ defmodule DatemWeb.AccessLive.Visitors do
             Issue pass
           </.button>
         </:action>
-        <:empty>No visitors yet. Register a walk-in below.</:empty>
+        <:empty>No visitors yet. Register a walk-in with the button above.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="visitor-modal" show on_cancel={JS.push("close_form")}>
+        <.header>Register a walk-in visitor</.header>
 
-      <.header>Register a walk-in visitor</.header>
+        <.form for={@form} id="visitor_form" phx-submit="save" phx-change="validate">
+          <.input field={@form[:name]} type="text" label="Name" required />
+          <.input field={@form[:contact]} type="text" label="Contact (phone/email)" />
+          <.input field={@form[:company]} type="text" label="Company" />
+          <.input field={@form[:host]} type="text" label="Host" />
 
-      <.form for={@form} id="visitor_form" phx-submit="save" phx-change="validate">
-        <.input field={@form[:name]} type="text" label="Name" required />
-        <.input field={@form[:contact]} type="text" label="Contact (phone/email)" />
-        <.input field={@form[:company]} type="text" label="Company" />
-        <.input field={@form[:host]} type="text" label="Host" />
+          <div class="mt-4">
+            <label class="mb-1.5 block text-sm font-medium text-gray-700">Photo</label>
+            <.live_file_input upload={@uploads.photo} class="text-sm" />
+            <p :for={err <- upload_errors(@uploads.photo)} class="mt-1.5 text-sm text-red-600">
+              {error_to_string(err)}
+            </p>
+          </div>
 
-        <div class="mt-4">
-          <label class="mb-1.5 block text-sm font-medium text-gray-700">Photo</label>
-          <.live_file_input upload={@uploads.photo} class="text-sm" />
-          <p :for={err <- upload_errors(@uploads.photo)} class="mt-1.5 text-sm text-red-600">
-            {error_to_string(err)}
-          </p>
-        </div>
-
-        <div class="mt-4">
-          <.button phx-disable-with="Saving...">Register & issue pass</.button>
-        </div>
-      </.form>
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Saving...">Register & issue pass</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -79,6 +81,7 @@ defmodule DatemWeb.AccessLive.Visitors do
     {:ok,
      socket
      |> assign(:invite_url, nil)
+     |> assign(:show_form, false)
      |> assign_visitors()
      |> assign_form(Access.change_visitor(%Visitor{}))
      |> allow_upload(:photo,
@@ -103,12 +106,27 @@ defmodule DatemWeb.AccessLive.Visitors do
       {:noreply,
        socket
        |> put_flash(:info, "Visitor registered and pass issued.")
+       |> assign(:show_form, false)
        |> assign_visitors()
        |> assign_form(Access.change_visitor(%Visitor{}))}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign_form(Access.change_visitor(%Visitor{}))}
+  end
+
+  def handle_event("close_form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign_form(Access.change_visitor(%Visitor{}))}
   end
 
   def handle_event("issue_pass", %{"id" => id}, socket) do

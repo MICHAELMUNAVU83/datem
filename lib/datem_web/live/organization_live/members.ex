@@ -13,6 +13,9 @@ defmodule DatemWeb.OrganizationLive.Members do
       <.header>
         Members
         <:subtitle>People with access to {@current_scope.organization.name}</:subtitle>
+        <:actions>
+          <.button phx-click="new">Invite someone</.button>
+        </:actions>
       </.header>
 
       <.table id="members" rows={@members}>
@@ -45,21 +48,24 @@ defmodule DatemWeb.OrganizationLive.Members do
         <:empty>No pending invitations.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="invite-modal" show on_cancel={JS.push("close_form")}>
+        <.header>Invite someone</.header>
 
-      <.header>Invite someone</.header>
-
-      <.form for={@form} id="invite_form" phx-submit="invite" phx-change="validate">
-        <.input field={@form[:email]} type="email" label="Email" required />
-        <.input
-          field={@form[:role]}
-          type="select"
-          label="Role"
-          options={Enum.map(Invitation.invitable_roles(), &{Phoenix.Naming.humanize(&1), &1})}
-          required
-        />
-        <.button phx-disable-with="Sending invite...">Send invitation</.button>
-      </.form>
+        <.form for={@form} id="invite_form" phx-submit="invite" phx-change="validate">
+          <.input field={@form[:email]} type="email" label="Email" required />
+          <.input
+            field={@form[:role]}
+            type="select"
+            label="Role"
+            options={Enum.map(Invitation.invitable_roles(), &{Phoenix.Naming.humanize(&1), &1})}
+            required
+          />
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Sending invite...">Send invitation</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -69,6 +75,7 @@ defmodule DatemWeb.OrganizationLive.Members do
     {:ok,
      socket
      |> assign_members_and_invitations()
+     |> assign(:show_form, false)
      |> assign(:form, to_form(Ecto.Changeset.change(%Invitation{}), as: "invitation"))}
   end
 
@@ -93,6 +100,7 @@ defmodule DatemWeb.OrganizationLive.Members do
         {:noreply,
          socket
          |> put_flash(:info, "Invitation sent.")
+         |> assign(:show_form, false)
          |> assign_members_and_invitations()
          |> assign(:form, to_form(Ecto.Changeset.change(%Invitation{}), as: "invitation"))}
 
@@ -102,6 +110,20 @@ defmodule DatemWeb.OrganizationLive.Members do
       {:error, :unauthorized} ->
         {:noreply, put_flash(socket, :error, "You are not authorized to invite members.")}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:form, to_form(Ecto.Changeset.change(%Invitation{}), as: "invitation"))}
+  end
+
+  def handle_event("close_form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign(:form, to_form(Ecto.Changeset.change(%Invitation{}), as: "invitation"))}
   end
 
   def handle_event("revoke", %{"id" => id}, socket) do

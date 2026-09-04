@@ -30,6 +30,7 @@ defmodule DatemWeb.TicketingLive.EventShow do
     {:ok,
      socket
      |> assign(:event, event)
+     |> assign(:show_form, false)
      |> assign(:join_url, event.join_link_token && url(~p"/join/#{event.join_link_token}"))
      |> assign_ticket_types()
      |> assign_stats()
@@ -88,28 +89,36 @@ defmodule DatemWeb.TicketingLive.EventShow do
 
       <div class="divider" />
 
-      <.header>Ticket types</.header>
+      <.header>
+        Ticket types
+        <:actions>
+          <.button phx-click="new">Add ticket type</.button>
+        </:actions>
+      </.header>
 
       <.table id="ticket-types" rows={@ticket_types}>
         <:col :let={t} label="Name">{t.name}</:col>
         <:col :let={t} label="Price">{t.price}</:col>
         <:col :let={t} label="Quantity">{t.quantity || "Unlimited"}</:col>
         <:col :let={t} label="Per-attendee limit">{t.per_attendee_limit}</:col>
-        <:empty>No ticket types yet. Add one below.</:empty>
+        <:empty>No ticket types yet. Add one with the button above.</:empty>
       </.table>
 
-      <.form for={@form} id="ticket_type_form" phx-submit="save" phx-change="validate">
-        <div class="grid gap-4 sm:grid-cols-4">
+      <.modal :if={@show_form} id="ticket-type-modal" show on_cancel={JS.push("close_form")}>
+        <.header>Add a ticket type</.header>
+
+        <.form for={@form} id="ticket_type_form" phx-submit="save" phx-change="validate">
           <.input field={@form[:name]} type="text" label="Name" required />
           <.input field={@form[:price]} type="number" label="Price" step="0.01" />
           <.input field={@form[:quantity]} type="number" label="Quantity (blank = unlimited)" />
           <.input field={@form[:per_attendee_limit]} type="number" label="Per-attendee limit" />
-        </div>
 
-        <div class="mt-4">
-          <.button phx-disable-with="Adding...">Add ticket type</.button>
-        </div>
-      </.form>
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Adding...">Add ticket type</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
 
       <div class="divider" />
 
@@ -139,12 +148,27 @@ defmodule DatemWeb.TicketingLive.EventShow do
         {:noreply,
          socket
          |> put_flash(:info, "Ticket type added.")
+         |> assign(:show_form, false)
          |> assign_ticket_types()
          |> assign_form(Ticketing.change_ticket_type(%TicketType{}))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign_form(Ticketing.change_ticket_type(%TicketType{}))}
+  end
+
+  def handle_event("close_form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign_form(Ticketing.change_ticket_type(%TicketType{}))}
   end
 
   def handle_event("new_join_link", _params, socket) do

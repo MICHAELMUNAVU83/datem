@@ -38,6 +38,13 @@ defmodule DatemWeb.AccessLive.VisitorsTest do
 
       html =
         lv
+        |> element("button", "Register a walk-in")
+        |> render_click()
+
+      assert html =~ "Register a walk-in visitor"
+
+      html =
+        lv
         |> form("#visitor_form", visitor: %{"name" => "Jane Doe", "company" => "Acme"})
         |> render_submit()
 

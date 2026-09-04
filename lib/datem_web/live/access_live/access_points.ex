@@ -13,7 +13,14 @@ defmodule DatemWeb.AccessLive.AccessPoints do
       <.header>
         Access points
         <:subtitle>Gates and checkpoints, each identified by a GLN extension</:subtitle>
+        <:actions>
+          <.button :if={@sites != []} phx-click="new">Add an access point</.button>
+        </:actions>
       </.header>
+
+      <p :if={@sites == []} class="mb-4 text-sm text-gray-500">
+        Add a site first before creating access points.
+      </p>
 
       <.table id="access-points" rows={@access_points}>
         <:col :let={ap} label="Name">{ap.name}</:col>
@@ -22,38 +29,28 @@ defmodule DatemWeb.AccessLive.AccessPoints do
         <:action :let={ap}>
           <.link phx-click="edit" phx-value-id={ap.id}>Edit</.link>
         </:action>
-        <:empty>No access points yet. Add your first one below.</:empty>
+        <:empty>No access points yet. Add your first one with the button above.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="access-point-modal" show on_cancel={JS.push("close_form")}>
+        <.header>{if @editing, do: "Edit access point", else: "Add an access point"}</.header>
 
-      <.header>{if @editing, do: "Edit access point", else: "Add an access point"}</.header>
-
-      <.form
-        :if={@sites != []}
-        for={@form}
-        id="access_point_form"
-        phx-submit="save"
-        phx-change="validate"
-      >
-        <.input field={@form[:name]} type="text" label="Name" required />
-        <.input
-          field={@form[:site_id]}
-          type="select"
-          label="Site"
-          prompt="Choose a site"
-          options={Enum.map(@sites, &{&1.name, &1.id})}
-          required
-        />
-        <div class="mt-4 flex gap-3">
-          <.button phx-disable-with="Saving...">Save</.button>
-          <.button :if={@editing} type="button" phx-click="cancel_edit">Cancel</.button>
-        </div>
-      </.form>
-
-      <p :if={@sites == []} class="text-sm text-gray-500">
-        Add a site first before creating access points.
-      </p>
+        <.form for={@form} id="access_point_form" phx-submit="save" phx-change="validate">
+          <.input field={@form[:name]} type="text" label="Name" required />
+          <.input
+            field={@form[:site_id]}
+            type="select"
+            label="Site"
+            prompt="Choose a site"
+            options={Enum.map(@sites, &{&1.name, &1.id})}
+            required
+          />
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Saving...">Save</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -66,6 +63,7 @@ defmodule DatemWeb.AccessLive.AccessPoints do
      socket
      |> assign(:sites, sites)
      |> assign(:editing, false)
+     |> assign(:show_form, false)
      |> assign(:access_point, nil)
      |> assign_access_points()
      |> assign_form(Access.change_access_point(%AccessPoint{}))}
@@ -96,14 +94,21 @@ defmodule DatemWeb.AccessLive.AccessPoints do
         {:noreply,
          socket
          |> put_flash(:info, "Access point saved.")
-         |> assign(:editing, false)
-         |> assign(:access_point, nil)
-         |> assign_access_points()
-         |> assign_form(Access.change_access_point(%AccessPoint{}))}
+         |> close_form()
+         |> assign_access_points()}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing, false)
+     |> assign(:show_form, true)
+     |> assign(:access_point, nil)
+     |> assign_form(Access.change_access_point(%AccessPoint{}))}
   end
 
   def handle_event("edit", %{"id" => id}, socket) do
@@ -112,16 +117,19 @@ defmodule DatemWeb.AccessLive.AccessPoints do
     {:noreply,
      socket
      |> assign(:editing, true)
+     |> assign(:show_form, true)
      |> assign(:access_point, access_point)
      |> assign_form(Access.change_access_point(access_point))}
   end
 
-  def handle_event("cancel_edit", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:editing, false)
-     |> assign(:access_point, nil)
-     |> assign_form(Access.change_access_point(%AccessPoint{}))}
+  def handle_event("close_form", _params, socket), do: {:noreply, close_form(socket)}
+
+  defp close_form(socket) do
+    socket
+    |> assign(:editing, false)
+    |> assign(:show_form, false)
+    |> assign(:access_point, nil)
+    |> assign_form(Access.change_access_point(%AccessPoint{}))
   end
 
   defp current_access_point(socket), do: socket.assigns.access_point || %AccessPoint{}

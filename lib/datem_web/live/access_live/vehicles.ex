@@ -14,6 +14,9 @@ defmodule DatemWeb.AccessLive.Vehicles do
       <.header>
         Vehicles
         <:subtitle>Registered vehicles, each identified by a GIAI windscreen tag</:subtitle>
+        <:actions>
+          <.button phx-click="new">Register a vehicle</.button>
+        </:actions>
       </.header>
 
       <.table id="vehicles" rows={@vehicles}>
@@ -25,7 +28,7 @@ defmodule DatemWeb.AccessLive.Vehicles do
         <:action :let={v}>
           <.link phx-click="show_qr" phx-value-id={v.id}>Show QR</.link>
         </:action>
-        <:empty>No vehicles yet. Register one below.</:empty>
+        <:empty>No vehicles yet. Register one with the button above.</:empty>
       </.table>
 
       <div
@@ -39,18 +42,19 @@ defmodule DatemWeb.AccessLive.Vehicles do
         </div>
       </div>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="vehicle-modal" show on_cancel={JS.push("close_form")}>
+        <.header>Register a vehicle</.header>
 
-      <.header>Register a vehicle</.header>
-
-      <.form for={@form} id="vehicle_form" phx-submit="save" phx-change="validate">
-        <.input field={@form[:plate]} type="text" label="Plate" required />
-        <.input field={@form[:make]} type="text" label="Make" />
-        <.input field={@form[:model]} type="text" label="Model" />
-        <div class="mt-4">
-          <.button phx-disable-with="Saving...">Register & issue QR</.button>
-        </div>
-      </.form>
+        <.form for={@form} id="vehicle_form" phx-submit="save" phx-change="validate">
+          <.input field={@form[:plate]} type="text" label="Plate" required />
+          <.input field={@form[:make]} type="text" label="Make" />
+          <.input field={@form[:model]} type="text" label="Model" />
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Saving...">Register & issue QR</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -60,6 +64,7 @@ defmodule DatemWeb.AccessLive.Vehicles do
     {:ok,
      socket
      |> assign(:qr_vehicle, nil)
+     |> assign(:show_form, false)
      |> assign_vehicles()
      |> assign_form(Access.change_vehicle(%Vehicle{}))}
   end
@@ -79,12 +84,27 @@ defmodule DatemWeb.AccessLive.Vehicles do
          socket
          |> put_flash(:info, "Vehicle registered.")
          |> assign(:qr_vehicle, vehicle)
+         |> assign(:show_form, false)
          |> assign_vehicles()
          |> assign_form(Access.change_vehicle(%Vehicle{}))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign_form(Access.change_vehicle(%Vehicle{}))}
+  end
+
+  def handle_event("close_form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign_form(Access.change_vehicle(%Vehicle{}))}
   end
 
   def handle_event("show_qr", %{"id" => id}, socket) do

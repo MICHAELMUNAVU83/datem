@@ -47,6 +47,13 @@ defmodule DatemWeb.OrganizationLive.MembersTest do
 
       html =
         lv
+        |> element("button", "Invite someone")
+        |> render_click()
+
+      assert html =~ "invite_form"
+
+      html =
+        lv
         |> form("#invite_form", invitation: %{"email" => email, "role" => "operator"})
         |> render_submit()
 

@@ -13,6 +13,9 @@ defmodule DatemWeb.TicketingLive.Events do
       <.header>
         Events
         <:subtitle>Create events and manage ticketing</:subtitle>
+        <:actions>
+          <.button phx-click="new">Create an event</.button>
+        </:actions>
       </.header>
 
       <.table id="events" rows={@events}>
@@ -28,24 +31,25 @@ defmodule DatemWeb.TicketingLive.Events do
         <:col :let={e} label="Status">
           <.badge kind={status_kind(e.status)}>{e.status}</.badge>
         </:col>
-        <:empty>No events yet. Create one below.</:empty>
+        <:empty>No events yet. Create one with the button above.</:empty>
       </.table>
 
-      <div class="divider" />
+      <.modal :if={@show_form} id="event-modal" show on_cancel={JS.push("close_form")}>
+        <.header>Create an event</.header>
 
-      <.header>Create an event</.header>
+        <.form for={@form} id="event_form" phx-submit="save" phx-change="validate">
+          <.input field={@form[:name]} type="text" label="Name" required />
+          <.input field={@form[:venue]} type="text" label="Venue" />
+          <.input field={@form[:description]} type="textarea" label="Description" />
+          <.input field={@form[:starts_at]} type="datetime-local" label="Starts at" />
+          <.input field={@form[:ends_at]} type="datetime-local" label="Ends at" />
 
-      <.form for={@form} id="event_form" phx-submit="save" phx-change="validate">
-        <.input field={@form[:name]} type="text" label="Name" required />
-        <.input field={@form[:venue]} type="text" label="Venue" />
-        <.input field={@form[:description]} type="textarea" label="Description" />
-        <.input field={@form[:starts_at]} type="datetime-local" label="Starts at" />
-        <.input field={@form[:ends_at]} type="datetime-local" label="Ends at" />
-
-        <div class="mt-4">
-          <.button phx-disable-with="Creating...">Create event</.button>
-        </div>
-      </.form>
+          <div class="mt-4 flex gap-3">
+            <.button phx-disable-with="Creating...">Create event</.button>
+            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end
@@ -54,6 +58,7 @@ defmodule DatemWeb.TicketingLive.Events do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(:show_form, false)
      |> assign_events()
      |> assign_form(Ticketing.change_event(%Event{}))}
   end
@@ -70,12 +75,27 @@ defmodule DatemWeb.TicketingLive.Events do
         {:noreply,
          socket
          |> put_flash(:info, "Event created.")
+         |> assign(:show_form, false)
          |> assign_events()
          |> assign_form(Ticketing.change_event(%Event{}))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
+  end
+
+  def handle_event("new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign_form(Ticketing.change_event(%Event{}))}
+  end
+
+  def handle_event("close_form", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign_form(Ticketing.change_event(%Event{}))}
   end
 
   defp assign_events(socket),
