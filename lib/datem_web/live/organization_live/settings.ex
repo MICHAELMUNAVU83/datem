@@ -8,10 +8,19 @@ defmodule DatemWeb.OrganizationLive.Settings do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+
+        <.pass_header
+          icon="hero-identification"
+          title="   Organisation settingss"
+          subtitle="General details and your GS1 Company Prefix"
+        >
+
+
+        </.pass_header>
       <.header>
-        Organisation settings
-        <:subtitle>General details and your GS1 Company Prefix</:subtitle>
+
+        <:subtitle></:subtitle>
       </.header>
 
       <.form for={@form} id="organization_form" phx-submit="save" phx-change="validate">
@@ -33,9 +42,10 @@ defmodule DatemWeb.OrganizationLive.Settings do
             until a licensed prefix is added.
           <% end %>
         </p>
-
+<br/>
         <.button phx-disable-with="Saving...">Save</.button>
       </.form>
+
     </Layouts.app>
     """
   end

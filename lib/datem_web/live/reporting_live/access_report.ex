@@ -137,7 +137,13 @@ defmodule DatemWeb.ReportingLive.AccessReport do
       Reporting.access_report(socket.assigns.current_scope, socket.assigns.filters)
     )
   end
+@nairobi_offset_seconds 3 * 60 * 60
 
-  defp format_day(%DateTime{} = day), do: Calendar.strftime(day, "%a %d %b")
-  defp format_day(%NaiveDateTime{} = day), do: Calendar.strftime(day, "%a %d %b")
+defp to_nairobi(%DateTime{} = dt), do: DateTime.add(dt, @nairobi_offset_seconds, :second)
+defp to_nairobi(%NaiveDateTime{} = ndt), do: NaiveDateTime.add(ndt, @nairobi_offset_seconds, :second)
+
+
+defp format_day(%Date{} = day), do: Calendar.strftime(day, "%a %d %b")
+defp format_day(%DateTime{} = day), do: day |> to_nairobi() |> Calendar.strftime("%a %d %b")
+defp format_day(%NaiveDateTime{} = day), do: day |> to_nairobi() |> Calendar.strftime("%a %d %b")
 end

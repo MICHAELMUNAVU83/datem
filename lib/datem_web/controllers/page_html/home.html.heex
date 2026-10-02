@@ -1,66 +1,616 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
-  <.header>
-    Dashboard
-    <:subtitle>Welcome back. Here's what's happening today.</:subtitle>
-    <:actions>
-      <.button variant="secondary">Export</.button>
-      <.button variant="primary">
-        <.icon name="hero-plus" class="size-4" /> Register visitor
-      </.button>
-    </:actions>
-  </.header>
 
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-    <.stat_card
-      label="On-site now"
-      value="0"
-      icon="hero-users"
-      hint="Visitors currently checked in"
-    />
-    <.stat_card label="Active events" value="0" icon="hero-ticket" hint="Running today" />
-    <.stat_card
-      label="Denied scans"
-      value="0"
-      icon="hero-shield-exclamation"
-      hint="Last 24 hours"
-    />
-  </div>
-
-  <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-    <.card title="Recent activity" class="lg:col-span-2">
-      <.table id="recent-activity" rows={[]}>
-        <:col :let={row} label="Subject">{row.subject}</:col>
-        <:col :let={row} label="Checkpoint">{row.checkpoint}</:col>
-        <:col :let={row} label="Result">{row.result}</:col>
-        <:col :let={row} label="Time">{row.time}</:col>
-        <:empty>No scans yet. Activity will appear here in real time.</:empty>
-      </.table>
-    </.card>
-
-    <.card title="Scan result states">
-      <div class="flex flex-wrap gap-2">
-        <.badge kind={:success}>Accepted</.badge>
-        <.badge kind={:warning}>Duplicate</.badge>
-        <.badge kind={:warning}>Expired</.badge>
-        <.badge kind={:danger}>Denied</.badge>
-        <.badge kind={:neutral}>Idle</.badge>
+<header
+  class="sticky top-0 z-[10] bg-white/90 px-[30px] py-5 backdrop-blur"
+  x-data="{ open: false, pages: false }"
+  @keydown.escape="pages = false; open = false"
+>
+  <div class="mx-auto w-full max-w-site">
+    <div class="flex w-full items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <a href="#top" class="flex items-center gap-2.5" aria-label="Datem home">
+          <img src="/images/datemlogo.png" width="42" alt="Datem logo" />
+          <span class="text-h6 font-extrabold tracking-[-.02em]">Datem</span>
+        </a>
       </div>
-      <.button class="mt-6 w-full" variant="secondary" phx-click={show_modal("welcome-modal")}>
-        Preview modal
-      </.button>
-    </.card>
-  </div>
 
-  <.modal id="welcome-modal">
-    <h2 id="welcome-modal-title" class="text-base font-semibold text-gray-900">
-      Welcome to Datem
-    </h2>
-    <p class="mt-2 text-sm text-gray-600">
-      This is the shared modal component, ready for confirmations and quick forms across the app.
-    </p>
-    <div class="mt-6 flex justify-end gap-3">
-      <.button variant="secondary" phx-click={hide_modal("welcome-modal")}>Close</.button>
-      <.button variant="primary" phx-click={hide_modal("welcome-modal")}>Got it</.button>
+      <nav class="hidden items-center gap-8 lg:flex">
+        <a href="#top" class="text-b18 text-ink transition hover:text-brand">Home</a>
+        <a href="#about" class="text-b18 text-ink transition hover:text-brand">Why Us</a>
+        <a href="#services" class="text-b18 text-ink transition hover:text-brand">Services</a>
+        
+        <a href="#contact" class="text-b18 text-ink transition hover:text-brand">Contact</a>
+       
+      </nav>
+
+      <div class="flex items-center gap-5">
+        <a href="/users/log-in" class="hidden text-b18 font-medium transition hover:text-brand lg:block">Login</a>
+        <a
+          href="#register"
+          class="group hidden items-center gap-2.5 overflow-hidden rounded-[10px] bg-brand px-6 py-3.5 text-b18 font-medium text-white transition hover:bg-ink lg:flex"
+        >
+          Register entry
+          <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="7" y1="17" x2="17" y2="7" />
+            <polyline points="7 7 17 7 17 17" />
+          </svg>
+        </a>
+        <button type="button" class="rounded-lg p-2 lg:hidden">
+          <span class="sr-only">Toggle navigation menu</span>
+          <svg x-show="!open" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+          <svg x-show="open" x-cloak class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
     </div>
-  </.modal>
-</Layouts.app>
+
+    <nav x-show="open" x-cloak x-collapse @click="open = false" class="mt-4 flex flex-col rounded-2xl bg-n2 p-5 lg:hidden">
+      <a href="#top" class="py-2.5 text-b18">Home</a>
+      <a href="#about" class="py-2.5 text-b18">Why Us</a>
+      <a href="#services" class="py-2.5 text-b18">Services</a>
+      <a href="#register" class="py-2.5 text-b18">Register Entry</a>
+      <a href="#contact" class="py-2.5 text-b18">Contact</a>
+      <a href="#register" class="mt-3 rounded-[10px] bg-brand px-6 py-3 text-center text-b18 font-medium text-white">Register entry to a location</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="overflow-hidden bg-lilac/60 px-[30px] py-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center justify-between gap-16 lg:flex-row">
+      <div class="w-full lg:w-[44%]">
+        <h1 class="reveal relative m-0 text-[36px] font-semibold leading-[110%] tracking-[-1px] sm:text-[56px] lg:text-h1 lg:tracking-[-4px]">
+          Smart, Secure,
+          <span class="marker"><span>Seamless</span></span> Visitor Access
+        </h1>
+        <p class="reveal mb-[53px] mt-[42px] text-b20 lg:pr-[100px]">
+          Securely streamline visitor check-ins with our digital visitor
+          management solution, for enhanced efficiency and safety.
+        </p>
+        <a
+          href="#register"
+          class="reveal group flex h-[70px] w-fit items-center gap-2.5 rounded-[10px] bg-brand px-8 text-b18 font-medium text-white transition hover:bg-ink"
+        >
+          Register an entry
+          <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="7" y1="17" x2="17" y2="7" />
+            <polyline points="7 7 17 7 17 17" />
+          </svg>
+        </a>
+        <p class="reveal mt-5 text-b16">
+          Already have an account?
+          <a href="users/log_in" class="font-semibold text-brand hover:underline">Log In now</a>
+        </p>
+      </div>
+
+      <div class="relative w-full lg:w-[52%]">
+        <div class="rounded-[20px] bg-brand/10 p-6 lg:p-10">
+          <img
+            src="/images/police.jpg"
+            alt="Security guard checking in a visitor at a facility"
+            class="reveal w-full rounded-[20px] object-cover shadow-hero"
+          />
+        </div>
+        <div class="reveal absolute -bottom-6 left-6 flex items-center gap-3 rounded-2xl bg-white px-5 py-3 shadow-lift">
+          <div class="flex -space-x-3">
+            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&q=80" alt="" loading="lazy" class="h-10 w-10 rounded-full border-2 border-white object-cover" />
+            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&q=80" alt="" loading="lazy" class="h-10 w-10 rounded-full border-2 border-white object-cover" />
+            <img src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&q=80" alt="" loading="lazy" class="h-10 w-10 rounded-full border-2 border-white object-cover" />
+          </div>
+          <span class="text-b16 font-semibold">Front desks checking in now</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="px-[30px] py-[60px]">
+    <div class="mx-auto w-full max-w-site">
+      <p class="text-center text-b16">Trusted by facilities and organizations across Kenya.</p>
+      <div class="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
+        <span class="text-center text-h6 font-bold text-[#b9b9c4]">GS1 Kenya</span>
+        <span class="text-center text-h6 font-bold text-[#b9b9c4]">Vumbuzi AI</span>
+        <span class="text-center text-h6 font-bold text-[#b9b9c4]">GHCE</span>
+        <span class="text-center text-h6 font-bold text-[#b9b9c4]">Glocal Models</span>
+        <span class="text-center text-h6 font-bold text-[#b9b9c4]">GS1 I-Hub</span>
+      </div>
+    </div>
+  </section>
+
+
+  <section id="services" class="px-[30px] pb-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[610px] text-center text-[36px] font-medium leading-[110%] tracking-[-.02px] sm:text-[48px] lg:text-h3">
+        Where security meets
+        <span class="marker"><span>smarter</span></span> access
+      </h2>
+
+      <div class="flex w-full flex-col gap-4">
+        <div class="flex flex-col gap-4 lg:flex-row">
+          <article class="reveal flex w-full flex-col gap-12 overflow-hidden rounded-[30px] bg-n2 px-12 pt-12 lg:w-[62%]">
+            <div class="flex flex-col gap-3">
+              <h3 class="text-h5 font-medium">Digital visitor check-in</h3>
+              <p class="text-b18 opacity-80">
+                Replace the paper logbook with a fast, digital sign-in that
+                keeps an accurate record of every guest on site.
+              </p>
+            </div>
+            <img src="https://vizito.eu/images/blog/reception-check-in.webp?width=1100" alt="Front desk staff checking in a visitor" loading="lazy" class="-mb-14 h-[280px] w-full rounded-t-[20px] object-cover" />
+          </article>
+          <article class="reveal flex w-full flex-col gap-10 overflow-hidden rounded-[30px] bg-n2 px-12 pb-12 pt-8 lg:w-[37%]">
+            <img src="https://www.hoyez.com/wp-content/uploads/2021/07/access-control-card-reader.jpg" alt="Access badge and ID verification" loading="lazy" class="h-[200px] w-full rounded-[20px] object-cover" />
+            <div class="flex flex-col gap-3">
+              <h3 class="text-h5 font-medium">Access Control</h3>
+              <p class="text-b18 opacity-80">Grant, log, and revoke facility access in real time.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="flex flex-col gap-4 lg:flex-row">
+          <article class="reveal relative flex w-full flex-col gap-1.5 overflow-hidden rounded-[30px] bg-n2 px-12 pt-12 lg:w-[37%]">
+            <div class="flex flex-col gap-3">
+              <h3 class="text-h5 font-medium">Visit Analytics</h3>
+              <p class="text-b18 opacity-80">See visitor volume, peak hours, and dwell time at a glance.</p>
+            </div>
+            <img src="https://img.magnific.com/free-photo/hands-using-tablet-screen-showing-statistics-business-data_53876-42762.jpg?semt=ais_hybrid&w=740&q=80" alt="Visitor analytics dashboard" loading="lazy" class="-mb-14 mt-8 h-[240px] w-full rounded-t-[20px] object-cover" />
+          </article>
+          <article class="reveal flex w-full flex-col gap-10 overflow-hidden rounded-[30px] bg-n2 pl-12 pt-12 lg:w-[62%]">
+            <div class="flex flex-col gap-3 pr-12">
+              <h3 class="text-h5 font-medium">Compliance &amp; Data Protection</h3>
+              <p class="text-b18 opacity-80">
+                Keep detailed, auditable visitor records that support your
+                organization's compliance and data-protection obligations.
+              </p>
+            </div>
+            <img src="https://alphacap.co.ke/wp-content/uploads/KRA-audit.webp" alt="Team reviewing compliance records" loading="lazy" class="h-[260px] w-full rounded-tl-[20px] object-cover" />
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="px-[30px] pb-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[650px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+        3 step process to a
+        <span class="marker"><span>secure</span></span> front desk
+      </h2>
+
+      <div class="grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+        <div class="reveal flex flex-col gap-20 rounded-[24px] bg-[#eff8ff] px-[35px] py-10">
+          <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-brand">
+            <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+            </svg>
+          </span>
+          <div class="flex flex-col gap-6">
+            <h3 class="text-h4 font-medium">Register the visit</h3>
+            <p class="text-b18 opacity-80">Guests fill in a quick digital form, or your front desk registers them in seconds.</p>
+            <a href="#register" class="flex items-center gap-2.5 text-b16 font-bold uppercase tracking-wide text-brand transition-all hover:gap-4">
+              Read more
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="7" y1="17" x2="17" y2="7" />
+                <polyline points="7 7 17 7 17 17" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="reveal flex flex-col gap-20 rounded-[24px] bg-[#ecae491a] px-[35px] py-10">
+          <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-amber">
+            <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <div class="flex flex-col gap-6">
+            <h3 class="text-h4 font-medium">Verify &amp; badge</h3>
+            <p class="text-b18 opacity-80">Identity is verified and an access badge is issued for the duration of the visit.</p>
+            <a href="#register" class="flex items-center gap-2.5 text-b16 font-bold uppercase tracking-wide text-brand transition-all hover:gap-4">
+              Read more
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="7" y1="17" x2="17" y2="7" />
+                <polyline points="7 7 17 7 17 17" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="reveal flex flex-col gap-20 rounded-[24px] bg-[#56c5901a] px-[35px] py-10">
+          <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#2f9e6a]">
+            <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+            </svg>
+          </span>
+          <div class="flex flex-col gap-6">
+            <h3 class="text-h4 font-medium">Track &amp; check out</h3>
+            <p class="text-b18 opacity-80">Every entry and exit is logged automatically, giving you a complete, auditable record.</p>
+            <a href="#register" class="flex items-center gap-2.5 text-b16 font-bold uppercase tracking-wide text-brand transition-all hover:gap-4">
+              Read more
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="7" y1="17" x2="17" y2="7" />
+                <polyline points="7 7 17 7 17 17" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+ 
+  <section id="about" class="px-[30px] pb-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[650px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+        Why facilities
+        <span class="marker"><span>choose</span></span> Datem
+      </h2>
+
+      <div class="flex w-full flex-col items-center justify-between gap-12 lg:flex-row">
+        <div class="reveal relative w-full rounded-[30px] bg-brand px-8 pb-24 pt-12 lg:w-[48%] lg:px-[50px] lg:pb-[110px] lg:pt-[60px]">
+          <img src="https://secuviz.com/wp-content/uploads/2024/07/a5e9fe649de3aa0ec4e3c758591cfc54.png" alt="Security personnel monitoring visitor access" loading="lazy" class="w-full rounded-[20px] object-cover shadow-hero" />
+        </div>
+
+        <div class="flex w-full flex-col items-start gap-8 lg:w-[44%]">
+          <div class="reveal flex gap-6">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac text-b20 font-bold text-brand">1</span>
+            <div class="flex w-[90%] flex-col gap-2">
+              <h3 class="text-h4 font-medium">Faster front-desk check-ins</h3>
+              <p class="text-b18 opacity-80">Cut queues and paperwork with a digital sign-in that takes seconds, not minutes.</p>
+            </div>
+          </div>
+          <div class="reveal flex gap-6">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac text-b20 font-bold text-brand">2</span>
+            <div class="flex w-[90%] flex-col gap-2">
+              <h3 class="text-h4 font-medium">Stronger facility security</h3>
+              <p class="text-b18 opacity-80">Know exactly who is on site at any moment, with a full history of every visit.</p>
+            </div>
+          </div>
+          <div class="reveal flex gap-6">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lilac text-b20 font-bold text-brand">3</span>
+            <div class="flex w-[90%] flex-col gap-2">
+              <h3 class="text-h4 font-medium">Built for compliance</h3>
+              <p class="text-b18 opacity-80">Data protection is built in from the start, so your visitor records stay secure and audit-ready.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS 
+  <section id="testimonials" class="bg-n6 px-[30px] py-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[650px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+        What our satisfied
+        <span class="marker"><span>facilities</span></span> say
+      </h2>
+
+      <div class="swiper testimonial-swiper w-full !px-1 !pb-16" phx-update="ignore" id="testimonial-swiper">
+        <div class="swiper-wrapper">
+          <figure class="swiper-slide !h-auto flex-col items-start gap-8 rounded-[20px] bg-white px-10 pb-[60px] pt-[54px] lg:pl-[45px]">
+            <div class="flex items-center gap-4">
+              <img src="https://images.unsplash.com/photo-1531891437562-4301cf35b7e4?w=120&q=80" alt="" loading="lazy" class="h-14 w-14 rounded-full object-cover" />
+              <div>
+                <div class="text-b18 font-semibold">Facility Manager</div>
+                <p class="text-b16 opacity-70">Nextgen Mall, Nairobi</p>
+              </div>
+            </div>
+            <blockquote class="mt-8 text-[22px] leading-[140%] lg:text-h5">
+              "Simple, effective, and incredibly fast. Our front desk
+              check-in time dropped, and our records are finally reliable."
+            </blockquote>
+            <div class="mt-8 flex w-full items-center gap-2.5">
+              <span class="flex gap-1 text-[#00b67a]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+              </span>
+              <span class="text-b14 font-semibold">5.0 Review</span>
+            </div>
+          </figure>
+
+          <figure class="swiper-slide !h-auto flex-col items-start gap-8 rounded-[20px] bg-white px-10 pb-[60px] pt-[54px] lg:pl-[45px]">
+            <div class="flex items-center gap-4">
+              <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&q=80" alt="" loading="lazy" class="h-14 w-14 rounded-full object-cover" />
+              <div>
+                <div class="text-b18 font-semibold">Operations Lead</div>
+                <p class="text-b16 opacity-70">Mombasa Road Offices</p>
+              </div>
+            </div>
+            <blockquote class="mt-8 text-[22px] leading-[140%] lg:text-h5">
+              "Effortless to roll out and our security team finally has a
+              live view of who is on site. Truly grateful for Datem."
+            </blockquote>
+            <div class="mt-8 flex w-full items-center gap-2.5">
+              <span class="flex gap-1 text-[#00b67a]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+              </span>
+              <span class="text-b14 font-semibold">5.0 Review</span>
+            </div>
+          </figure>
+
+          <figure class="swiper-slide !h-auto flex-col items-start gap-8 rounded-[20px] bg-white px-10 pb-[60px] pt-[54px] lg:pl-[45px]">
+            <div class="flex items-center gap-4">
+              <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&q=80" alt="" loading="lazy" class="h-14 w-14 rounded-full object-cover" />
+              <div>
+                <div class="text-b18 font-semibold">Compliance Officer</div>
+                <p class="text-b16 opacity-70">Corporate Head Office</p>
+              </div>
+            </div>
+            <blockquote class="mt-8 text-[22px] leading-[140%] lg:text-h5">
+              "Seamless, auditable, and transformative for our compliance
+              reporting. Visitor records are finally consistent."
+            </blockquote>
+            <div class="mt-8 flex w-full items-center gap-2.5">
+              <span class="flex gap-1 text-[#00b67a]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+              </span>
+              <span class="text-b14 font-semibold">5.0 Review</span>
+            </div>
+          </figure>
+        </div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-pagination"></div>
+      </div>
+    </div>
+  </section>
+
+<!--   TEAM 
+  <section id="team" class="px-[30px] py-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[650px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+        The team behind your
+        <span class="marker"><span>front desk</span></span>
+      </h2>
+
+      <div class="grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="reveal flex flex-col gap-4 rounded-[20px] border border-[#e7e7e8] p-4 pb-6 transition hover:shadow-lift">
+          <img src="https://static.vecteezy.com/system/resources/thumbnails/065/664/446/small/a-black-man-in-a-black-shirt-looking-at-the-camera-free-photo.jpg" alt="Support engineer" loading="lazy" class="h-[260px] w-full rounded-[14px] object-cover" />
+          <div>
+            <h3 class="text-h6 font-medium tracking-[-.02em]">Onboarding Specialist</h3>
+            <p class="mt-1 text-b18 opacity-70">Sets up your site in a day</p>
+          </div>
+        </div>
+        <div class="reveal flex flex-col gap-4 rounded-[20px] border border-[#e7e7e8] p-4 pb-6 transition hover:shadow-lift">
+          <img src="https://img.magnific.com/free-photo/african-teenage-girl-portrait-happy-smiling-face_53876-146757.jpg" alt="Technical support" loading="lazy" class="h-[260px] w-full rounded-[14px] object-cover" />
+          <div>
+            <h3 class="text-h6 font-medium tracking-[-.02em]">Technical Support</h3>
+            <p class="mt-1 text-b18 opacity-70">On call for your security team</p>
+          </div>
+        </div>
+        <div class="reveal flex flex-col gap-4 rounded-[20px] border border-[#e7e7e8] p-4 pb-6 transition hover:shadow-lift">
+          <img src="https://img.magnific.com/free-photo/serious-young-african-man-standing-isolated_171337-9633.jpg?semt=ais_hybrid&w=740&q=80" alt="Compliance advisor" loading="lazy" class="h-[260px] w-full rounded-[14px] object-cover" />
+          <div>
+            <h3 class="text-h6 font-medium tracking-[-.02em]">Compliance Advisor</h3>
+            <p class="mt-1 text-b18 opacity-70">Keeps records audit-ready</p>
+          </div>
+        </div>
+        <div class="reveal flex flex-col gap-4 rounded-[20px] border border-[#e7e7e8] p-4 pb-6 transition hover:shadow-lift">
+          <img src="https://media.istockphoto.com/id/1791833349/photo/student-university-and-portrait-of-black-woman-in-library-for-learning-education-and-reading.jpg?s=612x612&w=0&k=20&c=itaBSNJVOXsvG0POV3cTlyVIi9FbzC9YGdwcNsFf914=" alt="Account manager" loading="lazy" class="h-[260px] w-full rounded-[14px] object-cover" />
+          <div>
+            <h3 class="text-h6 font-medium tracking-[-.02em]">Account Manager</h3>
+            <p class="mt-1 text-b18 opacity-70">Your ongoing point of contact</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section> -->
+
+
+ <section id="register" class="px-[30px] pb-[120px]">
+  <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+    <h2 class="reveal relative w-full max-w-[650px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+      Get your <span class="marker"><span>digital entry pass</span></span> to your location
+    </h2>
+
+    {live_render(@conn, DatemWeb.RegisterEntryLive, id: "register-entry")}
+  </div>
+</section>
+  <section id="platforms" class="px-[30px] pb-[120px]">
+    <div class="mx-auto flex w-full max-w-site flex-col items-center gap-16">
+      <h2 class="reveal relative w-full max-w-[610px] text-center text-[36px] font-medium leading-[110%] sm:text-[48px] lg:text-h3">
+        Works with the tools your
+        <span class="marker"><span>front desk</span></span> already uses
+      </h2>
+
+      <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="reveal flex flex-col gap-24 rounded-[20px] border border-[#e2e2e2] px-5 py-8 transition hover:bg-[#f7f7f9]">
+          <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-lilac text-brand">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z" /></svg>
+          </span>
+          <div class="flex flex-col gap-4">
+            <h3 class="text-h6 font-medium">Email Alerts</h3>
+            <p class="text-b16 opacity-80">Get notified the moment a visitor checks in or out.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+          <div class="reveal flex flex-1 gap-4 rounded-[20px] border border-[#e2e2e2] pb-7 pl-5 pr-4 pt-6 transition hover:bg-[#f7f7f9]">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-mintbg text-[#2f9e6a]">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z" /></svg>
+            </span>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-h6 font-medium">SMS Notifications</h3>
+              <p class="text-b16 opacity-80">Host staff are texted when their guest arrives.</p>
+            </div>
+          </div>
+          <div class="reveal flex flex-1 gap-4 rounded-[20px] border border-[#e2e2e2] pb-7 pl-5 pr-4 pt-6 transition hover:bg-[#f7f7f9]">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-honey/60 text-[#b7842a]">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            </span>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-h6 font-medium">Badge Printing</h3>
+              <p class="text-b16 opacity-80">Print a visitor badge automatically at check-in.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+          <div class="reveal flex flex-1 gap-4 rounded-[20px] border border-[#e2e2e2] pb-7 pl-5 pr-4 pt-6 transition hover:bg-[#f7f7f9]">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-n2 text-ink">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 4.94-1.54 4.94-6.31a4.7 4.7 0 0 0-1.29-3.27 4.36 4.36 0 0 0-.08-3.3s-1.3-.39-4.3 1.61a10.3 10.3 0 0 0-5.5 0c-3-2-4.3-1.6-4.3-1.6a4.36 4.36 0 0 0-.08 3.29A4.7 4.7 0 0 0 3 9.21c0 4.73 1.8 5.92 4.94 6.31a3.37 3.37 0 0 0-.94 2.58V22" /></svg>
+            </span>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-h6 font-medium">API Access</h3>
+              <p class="text-b16 opacity-80">Connect visitor data to your own internal systems.</p>
+            </div>
+          </div>
+          <div class="reveal flex flex-1 gap-4 rounded-[20px] border border-[#e2e2e2] pb-7 pl-5 pr-4 pt-6 transition hover:bg-[#f7f7f9]">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky/70 text-[#2f6fbf]">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.27A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.89L15 14z" /><rect x="1" y="5" width="14" height="14" rx="2" /></svg>
+            </span>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-h6 font-medium">Reception Kiosk</h3>
+              <p class="text-b16 opacity-80">A self-serve tablet check-in for a walk-up front desk.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal flex flex-col gap-24 rounded-[20px] border border-[#e2e2e2] px-5 py-8 transition hover:bg-[#f7f7f9]">
+          <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-lilac text-brand">
+            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          </span>
+          <div class="flex flex-col gap-4">
+            <h3 class="text-h6 font-medium">Access Control Systems</h3>
+            <p class="text-b16 opacity-80">Integrate with your existing door and turnstile hardware.</p>
+          </div>
+        </div>
+      </div>
+
+      <a
+        href="#platforms"
+        class="reveal group flex items-center gap-2.5 rounded-[10px] bg-brand px-7 py-4 text-b18 font-medium text-white transition hover:bg-ink">
+         View all integrations
+         <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="7" y1="17" x2="17" y2="7" />
+          <polyline points="7 7 17 7 17 17" />
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="px-[30px] pt-[80px]">
+    <div class="mx-auto w-full max-w-site">
+      <div class="relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-[28px] bg-lilac2 pl-8 pt-8 lg:flex-row lg:pl-[68px] lg:pt-[30px]">
+        <div class="flex w-full flex-col items-start gap-8 pb-12 pr-8 lg:w-[58%] lg:pb-[68px] lg:pr-0">
+          <h2 class="reveal m-0 text-[36px] font-semibold leading-[110%] tracking-[-.02em] sm:text-[48px] lg:text-h2">
+            Ready to secure your organization?
+          </h2>
+          <p class="reveal text-b18">
+            Get started for free and see how Datem streamlines visitor
+            check-in and access management from day one.
+          </p>
+          <a
+            href="#register"
+            class="reveal group flex h-[70px] w-fit items-center gap-2.5 rounded-[10px] bg-brand px-8 text-b18 font-medium text-white transition hover:bg-ink"
+          >
+            Register an entry
+            <svg class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="7" y1="17" x2="17" y2="7" />
+              <polyline points="7 7 17 7 17 17" />
+            </svg>
+          </a>
+        </div>
+        <img
+          src="https://rsigeeks.com/blog/wp-content/uploads/2024/04/Visitor-Badge-Kiosk-Enhance-Security-and-Safety.jpg"
+          alt="Security team ready to help"
+          loading="lazy"
+          class="reveal -mb-6 w-full self-end object-cover lg:w-[38%]"
+        />
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="footer" class="px-[30px] pb-[30px] pt-[120px]">
+  <div class="mx-auto flex w-full max-w-site flex-col gap-[61px]">
+    <div class="flex flex-col items-start gap-16 lg:flex-row lg:gap-[160px]">
+      <div class="flex w-full flex-col gap-10 lg:w-[331px]">
+        <a href="#top" class="flex items-center gap-2.5" aria-label="Datem home">
+          <img src="/images/datemlogo.png" width="42" alt="Datem logo" />
+          <span class="text-h6 font-extrabold tracking-[-.02em]">Datem</span>
+        </a>
+        <p class="text-b16 opacity-80">
+          Datem: Where Security Meets Smarter Access — your facility's
+          digital guardian for visitor check-in and access management.
+        </p>
+      </div>
+
+      <div class="flex w-full flex-col gap-12 sm:flex-row sm:gap-24 lg:justify-between">
+        <div class="flex flex-col gap-[39px]">
+          <p class="text-b20 font-semibold">Quick Links</p>
+          <div class="flex flex-col gap-5">
+            <a href="#top" class="text-b16 transition hover:text-brand">Home</a>
+            <a href="#about" class="text-b16 transition hover:text-brand">Why Us</a>
+            <a href="#services" class="text-b16 transition hover:text-brand">Services</a>
+            <a href="#register" class="text-b16 transition hover:text-brand">Register Entry</a>
+            <a href="https://gs1kenya.org/support?system=Datem" class="text-b16 transition hover:text-brand">Support</a>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-[39px]">
+          <p class="text-b20 font-semibold">Legal</p>
+          <div class="flex flex-col gap-5">
+            <a href="/terms" class="text-b16 transition hover:text-brand">Terms &amp; Conditions</a>
+            <a href="/privacy_policy" class="text-b16 transition hover:text-brand">Privacy Policy</a>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-[39px]" id="contact">
+          <p class="text-b20 font-semibold">Contact Info</p>
+          <div class="flex flex-col gap-6">
+            <div class="flex gap-3">
+              <svg class="mt-1 h-5 w-5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+              <span class="text-b16">
+                <span class="block font-semibold">Location</span>
+                5th Floor Nextgen Mall, Mombasa Road, Nairobi, Kenya
+              </span>
+            </div>
+            <div class="flex gap-3">
+              <svg class="mt-1 h-5 w-5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+              <span class="text-b16">
+                <span class="block font-semibold">Phone Number</span>
+                <a href="tel:+254709226000" class="transition hover:text-brand">+254 709 226 000</a>
+              </span>
+            </div>
+            <div class="flex gap-3">
+              <svg class="mt-1 h-5 w-5 shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" /><polyline points="22 6 12 13 2 6" /></svg>
+              <span class="text-b16">
+                <span class="block font-semibold">Email</span>
+                <a href="mailto:support@datem.co.ke" class="transition hover:text-brand">support@datem.co.ke</a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-between gap-4 border-t border-[#1b1e1e1a] pt-9 sm:flex-row">
+      <p class="text-b16 opacity-80">
+        © 2026 Powered by
+        <a href="https://gs1kenya.org" rel="nofollow" class="font-semibold text-brand hover:underline">GS1 Kenya</a>.
+        All Rights Reserved.
+      </p>
+      <a href="/privacy_policy" class="text-b16 transition hover:text-brand">Privacy Policy</a>
+    </div>
+  </div>
+</footer>

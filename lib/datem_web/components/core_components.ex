@@ -143,6 +143,57 @@ defmodule DatemWeb.CoreComponents do
     end
   end
 
+
+
+@doc """
+Renders the light-banner section used at the top of a list page: an icon,
+title, subtitle, an optional count pill, and an actions slot for the
+primary button(s). Deliberately has no border/rounding of its own — wrap
+it together with the page's table in one bordered container so the banner,
+button bar, and table read as a single connected card rather than two
+separate floating boxes.
+
+## Examples
+
+    <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+      <.pass_header icon="hero-truck" title="Car Pass Management" subtitle="Track vehicle movements and mileage" count={length(@passes)}>
+        <.button phx-click="new">+ New Car Pass</.button>
+      </.pass_header>
+
+      <.table id="car-passes" rows={@passes}>
+        ...
+      </.table>
+    </div>
+"""
+attr :icon, :string, required: true
+attr :title, :string, required: true
+attr :subtitle, :string, default: nil
+attr :count, :integer, default: nil
+attr :count_label, :string, default: "Total"
+slot :inner_block, doc: "action button(s), rendered in the bar below the banner"
+
+def pass_header(assigns) do
+  ~H"""
+  <div>
+    <div class="flex items-center justify-between bg-blue-50 px-6 py-5">
+      <div>
+        <p class="flex items-center gap-2 text-lg font-semibold text-blue-900">
+          <.icon name={@icon} class="size-5" /> {@title}
+        </p>
+        <p :if={@subtitle} class="text-sm text-blue-700">{@subtitle}</p>
+      </div>
+      <div :if={@count} class="rounded-lg bg-white px-4 py-2 text-center shadow-sm">
+        <p class="text-xl font-semibold text-blue-900">{@count}</p>
+        <p class="text-xs text-blue-600">{@count_label}</p>
+      </div>
+    </div>
+
+    <div :if={@inner_block != []} class="flex justify-end gap-3 border-b border-gray-200 bg-white px-6 py-3">
+      {render_slot(@inner_block)}
+    </div>
+  </div>
+  """
+end
   @doc """
   Renders an input with label and error messages.
 
@@ -306,29 +357,35 @@ defmodule DatemWeb.CoreComponents do
   end
 
   # All other inputs text, datetime-local, url, password, etc. are handled here...
-  def input(assigns) do
-    ~H"""
-    <div class="mb-2">
-      <label for={@id}>
-        <span :if={@label} class="mb-1 block text-sm font-medium text-gray-700">{@label}</span>
-        <input
-          type={@type}
-          name={@name}
-          id={@id}
-          value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[
-            @class ||
-              "w-full rounded-lg border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-600 focus:ring-blue-600 sm:text-sm",
-            @errors != [] &&
-              (@error_class || "border-red-500 focus:border-red-500 focus:ring-red-500")
-          ]}
-          {@rest}
-        />
-      </label>
-      <.error :for={msg <- @errors}>{msg}</.error>
-    </div>
-    """
-  end
+def input(assigns) do
+  ~H"""
+  <div class="mb-2">
+    <label for={@id}>
+      <span :if={@label} class="mb-1 block text-sm font-medium text-gray-700">{@label}</span>
+      <input
+        type={@type}
+        name={@name}
+        id={@id}
+        value={Phoenix.HTML.Form.normalize_value(@type, @value)}
+        class={[
+          @class ||
+            [
+              "block w-full rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900",
+              "placeholder:text-gray-400 shadow-sm",
+              "focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none",
+              "invalid:border-gray-300 invalid:shadow-sm",
+              "sm:text-sm"
+            ],
+          @errors != [] &&
+            (@error_class || "border-red-500 focus:border-red-500 focus:ring-red-500")
+        ]}
+        {@rest}
+      />
+    </label>
+    <.error :for={msg <- @errors}>{msg}</.error>
+  </div>
+  """
+end
 
   # Helper used by inputs to generate form errors
   defp error(assigns) do
@@ -394,60 +451,60 @@ defmodule DatemWeb.CoreComponents do
   slot :action, doc: "the slot for showing user actions in the last table column"
   slot :empty, doc: "content shown instead of the table body when there are no rows"
 
-  def table(assigns) do
-    assigns =
-      with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
-        assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
-      end
+ def table(assigns) do
+  assigns =
+    with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
+      assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
+    end
 
-    assigns =
-      assign(
-        assigns,
-        :empty?,
-        is_list(assigns.rows) and assigns.rows == [] and assigns.empty != []
-      )
+  assigns =
+    assign(
+      assigns,
+      :empty?,
+      is_list(assigns.rows) and assigns.rows == [] and assigns.empty != []
+    )
 
-    ~H"""
-    <div
-      :if={@empty?}
-      class="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center"
-    >
-      <p class="text-sm text-gray-500">{render_slot(@empty)}</p>
-    </div>
-    <table :if={!@empty?} class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500">
-          <th :for={col <- @col} class="px-3 py-2">{col[:label]}</th>
-          <th :if={@action != []} class="px-3 py-2">
-            <span class="sr-only">{gettext("Actions")}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr
-          :for={row <- @rows}
-          id={@row_id && @row_id.(row)}
-          class="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+  ~H"""
+  <div
+    :if={@empty?}
+    class="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center"
+  >
+    <p class="text-sm text-gray-500">{render_slot(@empty)}</p>
+  </div>
+  <table :if={!@empty?} class="w-full text-left text-sm">
+    <thead>
+      <tr class="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500">
+        <th :for={col <- @col} class="px-4 py-3">{col[:label]}</th>
+        <th :if={@action != []} class="px-4 py-3">
+          <span class="sr-only">{gettext("Actions")}</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
+      <tr
+        :for={row <- @rows}
+        id={@row_id && @row_id.(row)}
+        class="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+      >
+        <td
+          :for={col <- @col}
+          phx-click={@row_click && @row_click.(row)}
+          class={["px-4 py-4 text-sm text-gray-700", @row_click && "hover:cursor-pointer"]}
         >
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={["px-3 py-3 text-gray-700", @row_click && "hover:cursor-pointer"]}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 px-3 py-3 font-medium">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    """
-  end
+          {render_slot(col, @row_item.(row))}
+        </td>
+        <td :if={@action != []} class="w-0 px-4 py-4 font-medium">
+          <div class="flex gap-4">
+            <%= for action <- @action do %>
+              {render_slot(action, @row_item.(row))}
+            <% end %>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  """
+end
 
   @doc """
   Renders a data list.

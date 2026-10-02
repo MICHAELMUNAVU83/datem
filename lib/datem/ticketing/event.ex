@@ -3,6 +3,7 @@ defmodule Datem.Ticketing.Event do
   import Ecto.Changeset
 
   @statuses ~w(draft published closed)
+  @attendee_detail_fields ~w(company id_number phone_number gender dob)
 
   schema "events" do
     field :name, :string
@@ -12,6 +13,10 @@ defmodule Datem.Ticketing.Event do
     field :ends_at, :utc_datetime
     field :status, :string, default: "draft"
     field :join_link_token, :string
+    field :required_attendee_fields, {:array, :string}, default: []
+
+    field :brand_color_start, :string, default: "#2563eb"
+    field :brand_color_end, :string, default: "#1e40af"
 
     belongs_to :organization, Datem.Organizations.Organization
     has_many :ticket_types, Datem.Ticketing.TicketType
@@ -25,9 +30,26 @@ defmodule Datem.Ticketing.Event do
   @doc false
   def changeset(event, attrs) do
     event
-    |> cast(attrs, [:name, :description, :venue, :starts_at, :ends_at, :organization_id])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :venue,
+      :starts_at,
+      :ends_at,
+      :organization_id,
+      :required_attendee_fields,
+      :brand_color_start,
+      :brand_color_end
+    ])
     |> validate_required([:name, :organization_id])
     |> validate_length(:name, max: 160)
+    |> validate_subset(:required_attendee_fields, @attendee_detail_fields)
+    |> validate_format(:brand_color_start, ~r/^#[0-9A-Fa-f]{6}$/,
+      message: "must be a hex color like #2563eb"
+    )
+    |> validate_format(:brand_color_end, ~r/^#[0-9A-Fa-f]{6}$/,
+      message: "must be a hex color like #2563eb"
+    )
     |> validate_starts_before_ends()
     |> foreign_key_constraint(:organization_id)
   end

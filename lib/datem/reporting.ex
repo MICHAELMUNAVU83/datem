@@ -38,19 +38,32 @@ defmodule Datem.Reporting do
   deterministically; it is interpreted in UTC, the same clock every log is
   written with.
   """
-  def dashboard(%Scope{} = scope, now \\ nil) do
-    now = now || DateTime.utc_now()
-    onsite = Access.list_onsite(scope)
+ def dashboard(%Scope{} = scope, now \\ nil, modules \\ [:access, :ticketing]) do
+  now = now || DateTime.utc_now()
 
-    %{
-      onsite: onsite,
-      onsite_count: length(onsite),
-      visitors_today: visitors_today(scope, now),
-      active_events: active_events(scope, now),
-      recent_denials: recent_denials(scope),
-      alerts: Access.list_alerts(scope)
-    }
-  end
+  access =
+    if :access in modules do
+      onsite = Access.list_onsite(scope)
+
+      %{
+        onsite: onsite,
+        onsite_count: length(onsite),
+        visitors_today: visitors_today(scope, now),
+        alerts: Access.list_alerts(scope)
+      }
+    else
+      %{onsite: [], onsite_count: 0, visitors_today: 0, alerts: []}
+    end
+
+  ticketing =
+    if :ticketing in modules do
+      %{active_events: active_events(scope, now), recent_denials: recent_denials(scope)}
+    else
+      %{active_events: [], recent_denials: []}
+    end
+
+  Map.merge(access, ticketing)
+end
 
   @doc "Distinct subjects scanned `in` since midnight UTC."
   def visitors_today(%Scope{} = scope, now \\ nil) do
@@ -59,7 +72,7 @@ defmodule Datem.Reporting do
     AccessLog
     |> Tenancy.scope(scope)
     |> where([l], l.direction == "in" and l.scanned_at >= ^start_of_day(now))
-    |> select([l], count(fragment("distinct (?, ?)", l.subject_type, l.subject_id)))
+    |> select([l], count(fragment("distinct ?, ?", l.subject_type, l.subject_id)))
     |> Repo.one()
   end
 
@@ -113,7 +126,7 @@ defmodule Datem.Reporting do
       {t.event_id,
        %{
          registered: count(t.id),
-         checked_in: filter(count(t.id), t.status == "checked_in")
+         checked_in: count(fragment("case when ? = ? then 1 end", t.status, "checked_in"))
        }}
     )
     |> Repo.all()
@@ -146,9 +159,9 @@ defmodule Datem.Reporting do
   defp access_totals(query) do
     query
     |> select([l], %{
-      entries: filter(count(l.id), l.direction == "in"),
-      exits: filter(count(l.id), l.direction == "out"),
-      unique_subjects: count(fragment("distinct (?, ?)", l.subject_type, l.subject_id))
+      entries: count(fragment("case when ? = ? then 1 end", l.direction, "in")),
+      exits: count(fragment("case when ? = ? then 1 end", l.direction, "out")),
+      unique_subjects: count(fragment("distinct ?, ?", l.subject_type, l.subject_id))
     })
     |> Repo.one()
   end
@@ -160,8 +173,8 @@ defmodule Datem.Reporting do
     |> select([l, site: s], %{
       site_id: s.id,
       name: s.name,
-      entries: filter(count(l.id), l.direction == "in"),
-      exits: filter(count(l.id), l.direction == "out")
+      entries: count(fragment("case when ? = ? then 1 end", l.direction, "in")),
+      exits: count(fragment("case when ? = ? then 1 end", l.direction, "out"))
     })
     |> Repo.all()
   end
@@ -174,20 +187,20 @@ defmodule Datem.Reporting do
       access_point_id: ap.id,
       name: ap.name,
       site_name: s.name,
-      entries: filter(count(l.id), l.direction == "in"),
-      exits: filter(count(l.id), l.direction == "out")
+      entries: count(fragment("case when ? = ? then 1 end", l.direction, "in")),
+      exits: count(fragment("case when ? = ? then 1 end", l.direction, "out"))
     })
     |> Repo.all()
   end
 
   defp access_by_day(query) do
     query
-    |> group_by([l], fragment("date_trunc('day', ?)", l.scanned_at))
-    |> order_by([l], asc: fragment("date_trunc('day', ?)", l.scanned_at))
+    |> group_by([l], fragment("DATE(?)", l.scanned_at))
+    |> order_by([l], asc: fragment("DATE(?)", l.scanned_at))
     |> select([l], %{
-      day: fragment("date_trunc('day', ?)", l.scanned_at),
-      entries: filter(count(l.id), l.direction == "in"),
-      exits: filter(count(l.id), l.direction == "out")
+      day: fragment("DATE(?)", l.scanned_at),
+      entries: count(fragment("case when ? = ? then 1 end", l.direction, "in")),
+      exits: count(fragment("case when ? = ? then 1 end", l.direction, "out"))
     })
     |> Repo.all()
   end

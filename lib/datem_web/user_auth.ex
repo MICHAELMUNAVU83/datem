@@ -247,13 +247,22 @@ defmodule DatemWeb.UserAuth do
     end
   end
 
-  @doc """
-  `on_mount` hook that requires the caller's role, within their current
-  organisation, to be one of `roles`. Assumes `:require_authenticated` (or
-  equivalent) has already run, but is safe to use on its own too.
+  def on_mount(:require_platform_admin, _params, session, socket) do
+  socket = mount_current_scope(socket, session)
 
-      on_mount {DatemWeb.UserAuth, {:require_role, [:owner, :admin]}}
-  """
+  if socket.assigns.current_scope.user && socket.assigns.current_scope.user.platform_admin do
+    {:cont, socket}
+  else
+    socket =
+      socket
+      |> Phoenix.LiveView.put_flash(:error, "You are not authorized to access this page.")
+      |> Phoenix.LiveView.redirect(to: ~p"/")
+
+    {:halt, socket}
+  end
+end
+
+
   def on_mount({:require_role, roles}, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 

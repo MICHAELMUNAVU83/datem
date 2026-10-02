@@ -6,44 +6,62 @@ defmodule DatemWeb.UserLive.Login do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
-        <div class="text-center">
-          <.header>
-            <p>Log in</p>
-            <:subtitle>
-              <%= if @current_scope do %>
-                You need to reauthenticate to perform sensitive actions on your account.
-              <% else %>
-                Don't have an account? <.link
-                  navigate={~p"/users/register"}
-                  class="font-semibold text-blue-600 hover:underline"
-                  phx-no-format
-                >Sign up</.link> for an account now.
-              <% end %>
-            </:subtitle>
-          </.header>
+    <Layouts.auth flash={@flash}>
+      <div class="space-y-8">
+        <.header>
+          <p>Log in</p>
+          <:subtitle>
+            <%= if @current_scope do %>
+              You need to reauthenticate to perform sensitive actions on your account.
+            <% else %>
+              Don't have an account? <.link
+                navigate={~p"/users/register"}
+                class="font-semibold text-blue-600 hover:underline"
+                phx-no-format
+              >Sign up</.link> for an account now.
+            <% end %>
+          </:subtitle>
+        </.header>
+
+        <div class="flex items-center gap-2 text-xs font-medium text-gray-400">
+          <.icon name="hero-lock-closed" class="size-3.5" /> Secure sign-in
         </div>
 
-        <div
-          :if={local_mail_adapter?()}
-          class="flex gap-3 rounded-lg bg-blue-50 p-4 text-sm text-blue-700"
-        >
-          <.icon name="hero-information-circle" class="size-6 shrink-0" />
-          <div>
-            <p>You are running the local mail adapter.</p>
-            <p>
-              To see sent emails, visit <.link href="/dev/mailbox" class="underline">the mailbox page</.link>.
-            </p>
-          </div>
+        <div class="grid grid-cols-2 gap-1 rounded-lg bg-gray-50 p-1 text-sm font-medium">
+          <button
+            type="button"
+            phx-click="switch_method"
+            phx-value-method="magic"
+            class={[
+              "rounded-md px-3 py-2 transition-colors",
+              (@login_method == "magic" && "bg-white text-gray-900 shadow-sm") ||
+                "text-gray-500 hover:text-gray-700"
+            ]}
+          >
+            Email link
+          </button>
+          <button
+            type="button"
+            phx-click="switch_method"
+            phx-value-method="password"
+            class={[
+              "rounded-md px-3 py-2 transition-colors",
+              (@login_method == "password" && "bg-white text-gray-900 shadow-sm") ||
+                "text-gray-500 hover:text-gray-700"
+            ]}
+          >
+            Password
+          </button>
         </div>
 
         <.form
+          :if={@login_method == "magic"}
           :let={f}
           for={@form}
           id="login_form_magic"
           action={~p"/users/log-in"}
           phx-submit="submit_magic"
+          class="space-y-5"
         >
           <.input
             readonly={!!@current_scope}
@@ -60,22 +78,15 @@ defmodule DatemWeb.UserLive.Login do
           </.button>
         </.form>
 
-        <div class="relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-200" />
-          </div>
-          <div class="relative flex justify-center text-xs">
-            <span class="bg-white px-2 text-gray-400">or</span>
-          </div>
-        </div>
-
         <.form
+          :if={@login_method == "password"}
           :let={f}
           for={@form}
           id="login_form_password"
           action={~p"/users/log-in"}
           phx-submit="submit_password"
           phx-trigger-action={@trigger_submit}
+          class="space-y-5"
         >
           <.input
             readonly={!!@current_scope}
@@ -85,6 +96,7 @@ defmodule DatemWeb.UserLive.Login do
             autocomplete="username"
             spellcheck="false"
             required
+            phx-mounted={JS.focus()}
           />
           <.input
             field={@form[:password]}
@@ -93,15 +105,17 @@ defmodule DatemWeb.UserLive.Login do
             autocomplete="current-password"
             spellcheck="false"
           />
-          <.button class="w-full" name={@form[:remember_me].name} value="true">
-            Log in and stay logged in <span aria-hidden="true">→</span>
-          </.button>
-          <.button variant="secondary" class="mt-2 w-full">
-            Log in only this time
-          </.button>
+          <div class="space-y-2">
+            <.button class="w-full" name={@form[:remember_me].name} value="true">
+              Log in and stay logged in <span aria-hidden="true">→</span>
+            </.button>
+            <.button variant="secondary" class="w-full">
+              Log in only this time
+            </.button>
+          </div>
         </.form>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 
@@ -113,12 +127,16 @@ defmodule DatemWeb.UserLive.Login do
 
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, trigger_submit: false)}
+    {:ok, assign(socket, form: form, trigger_submit: false, login_method: "magic")}
   end
 
   @impl true
   def handle_event("submit_password", _params, socket) do
     {:noreply, assign(socket, :trigger_submit, true)}
+  end
+
+  def handle_event("switch_method", %{"method" => method}, socket) do
+    {:noreply, assign(socket, :login_method, method)}
   end
 
   def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
@@ -136,9 +154,5 @@ defmodule DatemWeb.UserLive.Login do
      socket
      |> put_flash(:info, info)
      |> push_navigate(to: ~p"/users/log-in")}
-  end
-
-  defp local_mail_adapter? do
-    Application.get_env(:datem, Datem.Mailer)[:adapter] == Swoosh.Adapters.Local
   end
 end

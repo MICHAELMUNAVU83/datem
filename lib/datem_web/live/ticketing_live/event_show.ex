@@ -42,11 +42,20 @@ defmodule DatemWeb.TicketingLive.EventShow do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
       <.header>
         {@event.name}
         <:subtitle>{@event.venue}</:subtitle>
         <:actions>
+          <.link navigate={~p"/events/#{@event.id}/attendees"}>
+            <.button>Manage attendees</.button>
+          </.link>
+          <.link navigate={~p"/events/#{@event.id}/schedule"}>
+            <.button variant="secondary">Programme</.button>
+          </.link>
+          <.link navigate={~p"/events/#{@event.id}/content"}>
+            <.button variant="secondary">Public page content</.button>
+          </.link>
           <.link navigate={~p"/events/#{@event.id}/scan"}>
             <.button>Check-in scanning</.button>
           </.link>

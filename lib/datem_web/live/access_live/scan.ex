@@ -7,6 +7,8 @@ defmodule DatemWeb.AccessLive.Scan do
   use DatemWeb, :live_view
 
   alias Datem.Access
+  alias Datem.Organizations
+
 
   @reset_after :timer.seconds(3)
 
@@ -20,6 +22,12 @@ defmodule DatemWeb.AccessLive.Scan do
      |> assign(:access_point, access_point)
      |> assign(:scanner_supported, true)
      |> assign(:manual_code, "")
+     |> assign(:search_query, "")
+     |> assign(:search_results, [])
+     |> assign(:denied_visitor_id, nil)
+     |> assign(:last_scanned_code, nil)
+     |> assign(:employees, Organizations.list_employees(scope))
+|> assign(:renew_host_employee_id, nil)
      |> assign_idle()}
   end
 
@@ -86,6 +94,13 @@ defmodule DatemWeb.AccessLive.Scan do
 
       <.scan_result result={@result} title={@title} subtitle={@subtitle} />
 
+      <.button
+        :if={@result == :expired and @denied_visitor_id}
+        phx-click="renew_and_rescan"
+        class="w-full max-w-sm"
+      >
+        Renew pass & retry
+      </.button>
       <form phx-submit="manual_scan" class="flex w-full max-w-sm gap-2">
         <input
           type="text"
@@ -96,6 +111,39 @@ defmodule DatemWeb.AccessLive.Scan do
         />
         <.button type="submit">Scan</.button>
       </form>
+
+      <div class="w-full max-w-sm">
+        <p class="mb-1 text-center text-xs text-gray-400">— or —</p>
+        <input
+          type="text"
+          phx-keyup="search_visitors"
+          phx-debounce="300"
+          value={@search_query}
+          placeholder="Search a visitor by name or ID"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
+
+        <ul
+          :if={@search_results != []}
+          class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white"
+        >
+          <li :for={v <- @search_results} class="flex items-center justify-between px-3 py-2">
+            <span class="text-sm text-gray-900">{v.name}</span>
+            <.button phx-click="manual_visitor_scan" phx-value-id={v.id}>Scan</.button>
+          </li>
+        </ul>
+      </div>
+      <div :if={@result == :expired and @denied_visitor_id} class="w-full max-w-sm space-y-2">
+        <select
+          name="renew_host_employee_id"
+          phx-change="set_renew_host"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base shadow-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600 sm:text-sm"
+        >
+          <option value="">Same host as before</option>
+          <option :for={e <- @employees} value={e.id}>{e.name}</option>
+        </select>
+        <.button phx-click="renew_and_rescan" class="w-full">Renew pass & retry</.button>
+      </div>
     </Layouts.scanning>
     """
   end
@@ -109,6 +157,65 @@ defmodule DatemWeb.AccessLive.Scan do
 
   def handle_event("scanner_unsupported", _params, socket) do
     {:noreply, assign(socket, :scanner_supported, false)}
+  end
+
+  def handle_event("search_visitors", %{"value" => query}, socket) do
+    scope = socket.assigns.current_scope
+    results = if query == "", do: [], else: Access.search_visitors(scope, query)
+
+    {:noreply, socket |> assign(:search_query, query) |> assign(:search_results, results)}
+  end
+
+  def handle_event("set_renew_host", %{"renew_host_employee_id" => id}, socket) do
+  {:noreply, assign(socket, :renew_host_employee_id, id == "" && nil || String.to_integer(id))}
+end
+
+def handle_event("renew_and_rescan", _params, socket) do
+  scope = socket.assigns.current_scope
+  visitor = Access.get_visitor_for_scope!(scope, socket.assigns.denied_visitor_id)
+
+  attrs =
+    case socket.assigns.renew_host_employee_id do
+      nil -> %{}
+      employee_id ->
+        employee = Enum.find(socket.assigns.employees, &(&1.id == employee_id))
+        %{"host_employee_id" => employee_id, "host" => employee.name}
+    end
+
+  case Access.renew_pass(scope, visitor, attrs) do
+    {:ok, _} ->
+      {:noreply,
+       socket
+       |> assign(:denied_visitor_id, nil)
+       |> assign(:renew_host_employee_id, nil)
+       |> process_scan(socket.assigns.last_scanned_code)}
+
+    {:error, _} ->
+      {:noreply, put_flash(socket, :error, "Couldn't renew that pass.")}
+  end
+end
+  def handle_event("manual_visitor_scan", %{"id" => id}, socket) do
+    scope = socket.assigns.current_scope
+    access_point = socket.assigns.access_point
+    operator = scope.user
+    visitor = Access.get_visitor_for_scope!(scope, id)
+
+    socket =
+      case Access.manual_scan_visitor(scope, visitor, access_point, operator) do
+        {:ok, _log, direction} ->
+          Process.send_after(self(), :reset, @reset_after)
+          assign_result(socket, :accepted, visitor.name, "Checked #{direction} · #{time_now()}")
+
+        {:error, :no_active_pass} ->
+          Process.send_after(self(), :reset, @reset_after)
+          assign_result(socket, :denied, visitor.name, "No active pass for this visitor")
+
+        {:error, reason} ->
+          Process.send_after(self(), :reset, @reset_after)
+          assign_result(socket, :denied, visitor.name, message_for(reason))
+      end
+
+    {:noreply, socket |> assign(:search_query, "") |> assign(:search_results, [])}
   end
 
   @impl true
@@ -135,7 +242,10 @@ defmodule DatemWeb.AccessLive.Scan do
       {:error, reason, entity} ->
         Process.send_after(self(), :reset, @reset_after)
         broadcast_denial(scope, access_point, entity_name(entity), reason)
-        assign_result(socket, result_for(reason), entity_name(entity), message_for(reason))
+
+        socket
+        |> assign_result(result_for(reason), entity_name(entity), message_for(reason))
+        |> maybe_track_expired(reason, entity, code)
 
       {:error, reason} ->
         Process.send_after(self(), :reset, @reset_after)
@@ -155,6 +265,13 @@ defmodule DatemWeb.AccessLive.Scan do
        %{access_point: access_point, name: name, reason: reason, at: DateTime.utc_now()}}
     )
   end
+
+  defp maybe_track_expired(socket, :expired, %Datem.Access.Visitor{id: id}, code) do
+    socket |> assign(:denied_visitor_id, id) |> assign(:last_scanned_code, code)
+  end
+
+  defp maybe_track_expired(socket, _reason, _entity, _code),
+    do: assign(socket, :denied_visitor_id, nil)
 
   defp assign_idle(socket), do: assign_result(socket, :idle, "Ready to scan", nil)
 
@@ -177,5 +294,5 @@ defmodule DatemWeb.AccessLive.Scan do
   defp entity_name(%Datem.Access.Visitor{name: name}), do: name
   defp entity_name(%Datem.Access.Vehicle{plate: plate}), do: plate
 
-  defp time_now, do: Calendar.strftime(DateTime.utc_now(), "%H:%M")
+  defp time_now, do: Datem.NairobiTime.format(DateTime.utc_now(), "%H:%M")
 end

@@ -9,44 +9,47 @@ defmodule DatemWeb.OrganizationLive.Members do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Members
-        <:subtitle>People with access to {@current_scope.organization.name}</:subtitle>
-        <:actions>
+
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+      <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+        <.pass_header
+          icon="hero-users"
+          title="Members"
+          subtitle={"People with access to #{@current_scope.organization.name}"}
+        >
           <.button phx-click="new">Invite someone</.button>
-        </:actions>
-      </.header>
+        </.pass_header>
 
-      <.table id="members" rows={@members}>
-        <:col :let={membership} label="Email">{membership.user.email}</:col>
-        <:col :let={membership} label="Role">
-          <.badge>{membership.role}</.badge>
-        </:col>
-      </.table>
+        <.table id="members" rows={@members}>
+          <:col :let={membership} label="Email">{membership.user.email}</:col>
+          <:col :let={membership} label="Role">
+            <.badge>{membership.role}</.badge>
+          </:col>
+        </.table>
+      </div>
 
-      <div class="divider" />
+      <div class="mb-6 overflow-hidden rounded-xl border border-gray-200">
+        <div class="bg-gray-50 px-6 py-4">
+          <p class="text-lg font-semibold text-gray-900">Pending invitations</p>
+        </div>
 
-      <.header>
-        Pending invitations
-      </.header>
-
-      <.table id="invitations" rows={@invitations}>
-        <:col :let={invitation} label="Email">{invitation.email}</:col>
-        <:col :let={invitation} label="Role">
-          <.badge>{invitation.role}</.badge>
-        </:col>
-        <:action :let={invitation}>
-          <.link
-            phx-click="revoke"
-            phx-value-id={invitation.id}
-            data-confirm="Revoke this invitation?"
-          >
-            Revoke
-          </.link>
-        </:action>
-        <:empty>No pending invitations.</:empty>
-      </.table>
+        <.table id="invitations" rows={@invitations}>
+          <:col :let={invitation} label="Email">{invitation.email}</:col>
+          <:col :let={invitation} label="Role">
+            <.badge>{invitation.role}</.badge>
+          </:col>
+          <:action :let={invitation}>
+            <.link
+              phx-click="revoke"
+              phx-value-id={invitation.id}
+              data-confirm="Revoke this invitation?"
+            >
+              Revoke
+            </.link>
+          </:action>
+          <:empty>No pending invitations.</:empty>
+        </.table>
+      </div>
 
       <.modal :if={@show_form} id="invite-modal" show on_cancel={JS.push("close_form")}>
         <.header>Invite someone</.header>

@@ -9,25 +9,26 @@ defmodule DatemWeb.AccessLive.Sites do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Sites
-        <:subtitle>Physical locations, each identified by a GS1 GLN</:subtitle>
-        <:actions>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+      <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+        <.pass_header
+          icon="hero-building-office-2"
+          title="Sites"
+          subtitle="Physical locations, each identified by a GS1 GLN"
+        >
           <.button phx-click="new">Add a site</.button>
-        </:actions>
-      </.header>
+        </.pass_header>
 
-      <.table id="sites" rows={@sites}>
-        <:col :let={site} label="Name">{site.name}</:col>
-        <:col :let={site} label="Address">{site.address}</:col>
-        <:col :let={site} label="GLN"><code class="text-xs">{site.gln}</code></:col>
-        <:action :let={site}>
-          <.link phx-click="edit" phx-value-id={site.id}>Edit</.link>
-        </:action>
-        <:empty>No sites yet. Add your first one with the button above.</:empty>
-      </.table>
-
+        <.table id="sites" rows={@sites}>
+          <:col :let={site} label="Name">{site.name}</:col>
+          <:col :let={site} label="Address">{site.address}</:col>
+          <:col :let={site} label="GLN"><code class="text-xs">{site.gln}</code></:col>
+          <:action :let={site}>
+            <.link phx-click="edit" phx-value-id={site.id}>Edit</.link>
+          </:action>
+          <:empty>No sites yet. Add your first one with the button above.</:empty>
+        </.table>
+      </div>
       <.modal :if={@show_form} id="site-modal" show on_cancel={JS.push("close_form")}>
         <.header>{if @editing, do: "Edit site", else: "Add a site"}</.header>
 

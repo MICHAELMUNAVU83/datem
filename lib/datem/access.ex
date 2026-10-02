@@ -15,7 +15,12 @@ defmodule Datem.Access do
   alias Datem.Tenancy
   alias Datem.Access.{Site, AccessPoint, Visitor, VisitorPass, Vehicle, AccessLog}
 
+  alias Datem.Organizations.Employee
+  alias Datem.Accounts.UserNotifier
+
   @pass_validity_hours 24
+
+  @overdue_hours 12
 
   ## Sites
 
@@ -84,6 +89,8 @@ defmodule Datem.Access do
     access_point |> AccessPoint.changeset(attrs) |> Repo.update()
   end
 
+
+    def host_topic(user_id), do: "user:#{user_id}:visitor_approvals"
   ## Visitors
 
   def list_visitors(%Scope{} = scope) do
@@ -92,6 +99,131 @@ defmodule Datem.Access do
 
   def get_visitor_for_scope!(%Scope{} = scope, id) do
     Visitor |> Tenancy.scope(scope) |> preload(:visitor_passes) |> Repo.get!(id)
+  end
+
+  @doc "Finds registered visitors by name, ID number, or contact — for manual check-in when the scanner's down."
+  def search_visitors(%Scope{} = scope, query) when is_binary(query) do
+    like = "%#{escape_like(query)}%"
+
+    Visitor
+    |> Tenancy.scope(scope)
+    |> where([v], v.status in ["registered", "checked_in", "checked_out"])
+    |> where([v], like(v.name, ^like) or like(v.id_number, ^like) or like(v.contact, ^like))
+    |> order_by([v], desc: v.inserted_at)
+    |> limit(10)
+    |> Repo.all()
+  end
+
+  defp escape_like(term) do
+    term
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
+  end
+
+  @doc """
+  Manually scans a visitor in or out at `access_point` — the click-based
+  alternative to the QR scanner. Direction alternates automatically the
+  same way `scan/4` does, and it's recorded through the exact same
+  `record_scan/5`, so it appears identically in reports and the live feed.
+  """
+  def manual_scan_visitor(
+        %Scope{} = scope,
+        %Visitor{} = visitor,
+        %AccessPoint{} = access_point,
+        operator \\ nil
+      ) do
+    case get_active_pass_for_visitor(scope, visitor.id) do
+      nil ->
+        {:error, :no_active_pass}
+
+      pass ->
+        direction =
+          case last_direction(scope, "visitor_pass", pass.id) do
+            "in" -> "out"
+            _ -> "in"
+          end
+
+        case record_scan(scope, access_point, pass, direction, operator) do
+          {:ok, log} -> {:ok, log, direction}
+          error -> error
+        end
+    end
+  end
+
+  @doc """
+  Every access-log entry across the organisation, most recent first, with
+  each subject's display name and host resolved — the full audit trail,
+  not just who's currently on-site.
+  """
+  def list_scan_history(%Scope{} = scope, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 100)
+
+    AccessLog
+    |> Tenancy.scope(scope)
+    |> order_by([l], desc: l.scanned_at)
+    |> limit(^limit)
+    |> preload(:access_point)
+    |> Repo.all()
+    |> Enum.map(&onsite_entry(scope, &1))
+  end
+
+  def renew_pass(%Scope{} = scope, %Visitor{} = visitor, attrs \\ %{}) do
+    Repo.transact(fn ->
+      with {:ok, visitor} <- maybe_update_host(visitor, attrs),
+           _ <- maybe_revoke_active_pass(scope, visitor),
+           {:ok, %{pass: pass}} <- issue_pass(scope, visitor) do
+        {:ok, %{visitor: visitor, pass: pass}}
+      end
+    end)
+  end
+
+  defp maybe_update_host(visitor, attrs) when map_size(attrs) == 0, do: {:ok, visitor}
+
+  defp maybe_update_host(visitor, attrs),
+    do: visitor |> Visitor.host_changeset(attrs) |> Repo.update()
+
+  defp maybe_revoke_active_pass(scope, visitor) do
+    case get_active_pass_for_visitor(scope, visitor.id) do
+      nil -> :ok
+      pass -> revoke_pass(scope, pass)
+    end
+  end
+
+  @doc "Every access-log entry across all of a visitor's passes, most recent first."
+  def list_visitor_scan_history(%Scope{} = scope, %Visitor{} = visitor) do
+    pass_ids =
+      VisitorPass
+      |> Tenancy.scope(scope)
+      |> where([p], p.visitor_id == ^visitor.id)
+      |> select([p], p.id)
+      |> Repo.all()
+
+    AccessLog
+    |> Tenancy.scope(scope)
+    |> where([l], l.subject_type == "visitor_pass" and l.subject_id in ^pass_ids)
+    |> preload(:access_point)
+    |> order_by([l], desc: l.scanned_at)
+    |> Repo.all()
+  end
+
+  @doc "How many times this visitor has been scanned in, ever."
+  def visitor_visit_count(%Scope{} = scope, %Visitor{} = visitor) do
+    scope |> list_visitor_scan_history(visitor) |> Enum.count(&(&1.direction == "in"))
+  end
+
+  def get_visitor_pass_for_scope!(%Scope{} = scope, id) do
+    VisitorPass |> Tenancy.scope(scope) |> preload(:visitor) |> Repo.get!(id)
+  end
+
+  @doc "Manually checks out the exact pass currently on-site, bypassing the QR scanner."
+  def manual_check_out_pass(
+        %Scope{} = scope,
+        %VisitorPass{} = pass,
+        %AccessPoint{} = access_point,
+        operator \\ nil
+      ) do
+    record_scan(scope, access_point, pass, "out", operator)
   end
 
   def change_visitor(%Visitor{} = visitor, attrs \\ %{}), do: Visitor.changeset(visitor, attrs)
@@ -106,6 +238,14 @@ defmodule Datem.Access do
   def store_visitor_photo(%Scope{} = scope, %Visitor{} = visitor, photo_path) do
     ensure_same_organization!(scope, visitor)
     visitor |> Visitor.photo_changeset(photo_path) |> Repo.update()
+  end
+
+  @doc "Public, unauthenticated: sites for a given organisation, for the landing-page registration form."
+  def list_sites_for_organization(organization_id) do
+    Site
+    |> where([s], s.organization_id == ^organization_id)
+    |> order_by([s], asc: s.name)
+    |> Repo.all()
   end
 
   @doc """
@@ -159,22 +299,19 @@ defmodule Datem.Access do
 
   ## Pre-registration
 
-  @doc "Creates the pending visitor stub behind a shareable pre-registration link. The token lives on the returned visitor's `invite_token` field."
-  def create_pre_registration(%Scope{} = scope, host) when is_binary(host) do
-    token = random_token()
+@doc "Creates the pending visitor stub behind a shareable pre-registration link. The token lives on the returned visitor's `invite_token` field."
+def create_pre_registration(%Scope{} = scope, %Employee{} = host_employee) do
+  token = random_token()
 
-    attrs = %{
-      "host" => host,
-      "organization_id" => Tenancy.organization_id!(scope),
-      "invite_token" => token
-    }
+  attrs = %{
+    "host" => host_employee.name,
+    "host_employee_id" => host_employee.id,
+    "organization_id" => Tenancy.organization_id!(scope),
+    "invite_token" => token
+  }
 
-    case %Visitor{} |> Visitor.pre_registration_changeset(attrs) |> Repo.insert() do
-      {:ok, visitor} -> {:ok, visitor}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
-
+  %Visitor{} |> Visitor.pre_registration_changeset(attrs) |> Repo.insert()
+end
   @doc "Looks up a pending pre-registration by its public token. Returns nil if unknown or already completed."
   def get_pending_pre_registration_by_token(token) when is_binary(token) do
     Visitor
@@ -183,25 +320,53 @@ defmodule Datem.Access do
     |> Repo.one()
   end
 
-  @doc """
-  Completes a pre-registration: the visitor fills in their own details and
-  a pass is issued immediately, scoped to the organisation that created
-  the invite (never the caller's own session, since this runs as a public,
-  unauthenticated visitor).
-  """
-  def complete_pre_registration(%Visitor{status: "pending"} = visitor, attrs) do
-    scope = %Scope{organization: visitor.organization}
+  @doc "Host approves a pending visit: issues a pass and stamps `approved_at`."
+  def approve_visitor(%Scope{} = scope, %Visitor{status: "awaiting_approval"} = visitor) do
+    ensure_same_organization!(scope, visitor)
 
     Repo.transact(fn ->
       with {:ok, visitor} <-
-             visitor |> Visitor.self_registration_changeset(attrs) |> Repo.update(),
+             visitor
+             |> Ecto.Changeset.change(
+               approved_at: DateTime.utc_now() |> DateTime.truncate(:second)
+             )
+             |> Repo.update(),
            {:ok, %{pass: pass}} <- issue_pass(scope, visitor) do
+        qr_png = GS1.qr_png(pass.gs1_identifier.digital_link)
+        UserNotifier.deliver_visit_pass(visitor, visitor.email, pass, qr_png)
         {:ok, %{visitor: visitor, pass: pass}}
       end
     end)
   end
 
-  ## Vehicles
+  @doc "Host denies a pending visit. No pass is issued."
+  def deny_visitor(%Scope{} = scope, %Visitor{status: "awaiting_approval"} = visitor) do
+    ensure_same_organization!(scope, visitor)
+
+    visitor
+    |> Ecto.Changeset.change(
+      status: "denied",
+      denied_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    )
+    |> Repo.update()
+  end
+
+  @doc "Visits awaiting approval from the employee linked to `user_id`."
+  def list_pending_approvals_for_host(%Scope{} = scope, user_id) do
+    Visitor
+    |> Tenancy.scope(scope)
+    |> join(:inner, [v], e in Employee, on: v.host_employee_id == e.id)
+    |> where([v, e], v.status == "awaiting_approval" and e.user_id == ^user_id)
+    |> order_by([v], desc: v.inserted_at)
+    |> Repo.all()
+  end
+
+  defp visit_approval_url(%Visitor{} = visitor) do
+    DatemWeb.Endpoint.url() <> "/visitors/#{visitor.id}"
+  end
+
+  @doc "PubSub topic for a specific user's visitor-approval notifications."
+
 
   def list_vehicles(%Scope{} = scope) do
     Vehicle
@@ -364,19 +529,106 @@ defmodule Datem.Access do
   def list_onsite(%Scope{} = scope) do
     AccessLog
     |> Tenancy.scope(scope)
-    |> distinct([l], [l.subject_type, l.subject_id])
     |> order_by([l], asc: l.subject_type, asc: l.subject_id, desc: l.scanned_at)
     |> preload(:access_point)
     |> Repo.all()
+    |> Enum.uniq_by(&{&1.subject_type, &1.subject_id})
     |> Enum.filter(&(&1.direction == "in"))
     |> Enum.map(&onsite_entry(scope, &1))
     |> Enum.sort_by(& &1.log.scanned_at, {:desc, DateTime})
   end
 
+  def register_public_visit(attrs) do
+    Repo.transact(fn ->
+      with {:ok, visitor} <-
+             %Visitor{} |> Visitor.public_registration_changeset(attrs) |> Repo.insert() do
+        UserNotifier.deliver_visit_confirmation(visitor, visitor.email)
+
+        case Repo.get(Employee, visitor.host_employee_id) do
+          %Employee{user_id: user_id} = employee when not is_nil(user_id) ->
+            {:ok, visitor} =
+              visitor |> Visitor.status_changeset("awaiting_approval") |> Repo.update()
+
+            notify_host(visitor, employee)
+            {:ok, %{visitor: visitor, pass: nil}}
+
+          _ ->
+            org = Repo.get!(Datem.Organizations.Organization, visitor.organization_id)
+            scope = %Scope{organization: org}
+            {:ok, %{pass: pass}} = issue_pass(scope, visitor)
+            qr_png = GS1.qr_png(pass.gs1_identifier.digital_link)
+            UserNotifier.deliver_visit_pass(visitor, visitor.email, pass, qr_png)
+            {:ok, %{visitor: visitor, pass: pass}}
+        end
+      end
+    end)
+  end
+
+  def complete_pre_registration(%Visitor{status: "pending"} = visitor, attrs) do
+    Repo.transact(fn ->
+      with {:ok, visitor} <-
+             visitor |> Visitor.self_registration_changeset(attrs) |> Repo.update() do
+        UserNotifier.deliver_visit_confirmation(visitor, visitor.email)
+
+        case visitor.host_employee_id && Repo.get(Employee, visitor.host_employee_id) do
+          %Employee{user_id: user_id} = employee when not is_nil(user_id) ->
+            {:ok, visitor} =
+              visitor |> Visitor.status_changeset("awaiting_approval") |> Repo.update()
+
+            notify_host(visitor, employee)
+            {:ok, %{visitor: visitor, pass: nil}}
+
+          _ ->
+            scope = %Scope{organization: visitor.organization}
+            {:ok, %{pass: pass}} = issue_pass(scope, visitor)
+            qr_png = GS1.qr_png(pass.gs1_identifier.digital_link)
+            UserNotifier.deliver_visit_pass(visitor, visitor.email, pass, qr_png)
+            {:ok, %{visitor: visitor, pass: pass}}
+        end
+      end
+    end)
+  end
+
+
+  def manual_check_in(
+        %Scope{} = scope,
+        %Visitor{} = visitor,
+        %AccessPoint{} = access_point,
+        operator \\ nil
+      ) do
+    case get_active_pass_for_visitor(scope, visitor.id) do
+      nil -> {:error, :no_active_pass}
+      pass -> record_scan(scope, access_point, pass, "in", operator)
+    end
+  end
+
+
+  def manual_check_out(
+        %Scope{} = scope,
+        %Visitor{} = visitor,
+        %AccessPoint{} = access_point,
+        operator \\ nil
+      ) do
+    case get_active_pass_for_visitor(scope, visitor.id) do
+      nil -> {:error, :no_active_pass}
+      pass -> record_scan(scope, access_point, pass, "out", operator)
+    end
+  end
+
+
   defp onsite_entry(scope, %AccessLog{subject_type: "visitor_pass", subject_id: pass_id} = log) do
     case VisitorPass |> Tenancy.scope(scope) |> preload(:visitor) |> Repo.get(pass_id) do
-      nil -> %{log: log, name: "Unknown visitor", host: nil, kind: :visitor}
-      pass -> %{log: log, name: pass.visitor.name, host: pass.visitor.host, kind: :visitor}
+      nil ->
+        %{log: log, name: "Unknown visitor", host: nil, kind: :visitor, visitor_id: nil}
+
+      pass ->
+        %{
+          log: log,
+          name: pass.visitor.name,
+          host: pass.visitor.host,
+          kind: :visitor,
+          visitor_id: pass.visitor.id
+        }
     end
   end
 
@@ -386,8 +638,6 @@ defmodule Datem.Access do
       vehicle -> %{log: log, name: vehicle.plate, host: nil, kind: :vehicle}
     end
   end
-
-  @overdue_hours 12
 
   @doc """
   Operational alerts for the organisation: visitors who have been on-site
@@ -478,4 +728,20 @@ defmodule Datem.Access do
   defp random_token do
     16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
   end
+
+  defp notify_host(%Visitor{} = visitor, %Employee{} = employee) do
+    if employee.user_id do
+      Phoenix.PubSub.broadcast(
+        Datem.PubSub,
+        host_topic(employee.user_id),
+        {:visitor_awaiting_approval, visitor}
+      )
+    end
+
+    if employee.email do
+      UserNotifier.deliver_visit_approval_request(employee, visitor, visit_approval_url(visitor))
+    end
+  end
+
+
 end

@@ -341,7 +341,7 @@ defmodule Datem.Scanning do
     |> group_by([l], l.scan_type_id)
     |> select(
       [l],
-      {l.scan_type_id, count(fragment("distinct (?, ?)", l.subject_type, l.subject_id))}
+      {l.scan_type_id, count(fragment("distinct ?, ?", l.subject_type, l.subject_id))}
     )
     |> Repo.all()
     |> Map.new()

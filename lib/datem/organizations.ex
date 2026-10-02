@@ -11,8 +11,9 @@ defmodule Datem.Organizations do
 
   alias Datem.Repo
   alias Datem.Accounts.{Scope, User}
-  alias Datem.Organizations.{Organization, Membership, Invitation, InvitationNotifier}
+  alias Datem.Organizations.{Organization, Membership, Invitation, InvitationNotifier, Employee}
   alias Datem.Tenancy
+
 
   @role_rank %{owner: 4, admin: 3, operator: 2, viewer: 1}
 
@@ -242,27 +243,82 @@ defmodule Datem.Organizations do
     end
   end
 
-  ## Slugs
 
-  defp insert_organization_with_unique_slug(attrs, suffix \\ nil) do
-    base_slug = Map.get(attrs, :slug) || slug_from_name(Map.get(attrs, :name, ""))
-    candidate_slug = if suffix, do: "#{base_slug}-#{suffix}", else: base_slug
 
-    %Organization{}
-    |> Organization.changeset(Map.put(attrs, :slug, candidate_slug))
+def list_employees(%Scope{} = scope) do
+  Employee |> Tenancy.scope(scope) |> order_by([e], asc: e.name) |> Repo.all()
+end
+
+def get_employee_for_scope!(%Scope{} = scope, id) do
+  Employee |> Tenancy.scope(scope) |> Repo.get!(id)
+end
+
+def change_employee(%Employee{} = employee, attrs \\ %{}), do: Employee.changeset(employee, attrs)
+
+@doc "Adds a staff member to the caller's organisation. Caller must be owner or admin."
+def create_employee(%Scope{} = scope, attrs) do
+  with :ok <- authorize(scope, [:owner, :admin]) do
+    %Employee{}
+    |> Employee.changeset(Map.put(attrs, "organization_id", Tenancy.organization_id!(scope)))
     |> Repo.insert()
-    |> case do
-      {:error, changeset} ->
-        if suffix == nil and Keyword.has_key?(changeset.errors, :slug) do
-          insert_organization_with_unique_slug(attrs, random_suffix())
-        else
-          {:error, changeset}
-        end
-
-      ok ->
-        ok
-    end
   end
+end
+
+def update_employee(%Scope{} = scope, %Employee{} = employee, attrs) do
+  with :ok <- authorize(scope, [:owner, :admin]) do
+    ensure_same_organization!(scope, employee)
+    employee |> Employee.changeset(attrs) |> Repo.update()
+  end
+end
+
+def delete_employee(%Scope{} = scope, %Employee{} = employee) do
+  with :ok <- authorize(scope, [:owner, :admin]) do
+    ensure_same_organization!(scope, employee)
+    Repo.delete(employee)
+  end
+end
+
+
+  @spec list_registerable_organizations() :: any()
+  @doc "Public, unauthenticated: organisations visitors can register to visit."
+def list_registerable_organizations do
+  Organization
+  |> order_by([o], asc: o.name)
+  |> Repo.all()
+end
+
+@doc "Public, unauthenticated: staff a visitor can select as their host, for a given organisation."
+def list_employees_for_organization(organization_id) do
+  Employee
+  |> where([e], e.organization_id == ^organization_id)
+  |> order_by([e], asc: e.name)
+  |> Repo.all()
+end
+
+
+
+defp insert_organization_with_unique_slug(attrs, suffix \\ nil) do
+  attrs = for {k, v} <- attrs, into: %{}, do: {to_string(k), v}
+
+  base_slug = Map.get(attrs, "slug") || slug_from_name(Map.get(attrs, "name", ""))
+  candidate_slug = if suffix, do: "#{base_slug}-#{suffix}", else: base_slug
+
+  %Organization{}
+  |> Organization.changeset(Map.put(attrs, "slug", candidate_slug))
+  |> Repo.insert()
+  |> case do
+    {:error, changeset} ->
+      if suffix == nil and Keyword.has_key?(changeset.errors, :slug) do
+        insert_organization_with_unique_slug(attrs, random_suffix())
+      else
+        {:error, changeset}
+      end
+
+    ok ->
+      ok
+  end
+end
+
 
   defp random_suffix do
     4
@@ -280,4 +336,28 @@ defmodule Datem.Organizations do
       slug -> slug
     end
   end
+
+  @doc "Platform-admin only: every organisation in the system, alphabetically."
+def list_all_organizations do
+  Organization
+  |> order_by([o], asc: o.name)
+  |> Repo.all()
+end
+
+@doc "Platform-admin only: sets which modules an organisation has access to."
+def set_organization_modules(%Organization{} = organization, modules) when is_list(modules) do
+  organization
+  |> Organization.changeset(%{modules: modules})
+  |> Repo.update()
+end
+
+@doc "Platform-admin only: creates a new organisation with no members yet."
+def create_organization(attrs) do
+  insert_organization_with_unique_slug(attrs)
+end
+def has_module?(%Scope{organization: %Organization{modules: modules}}, module) do
+  to_string(module) in modules
+end
+
+def has_module?(nil, _module), do: false
 end

@@ -10,27 +10,28 @@ defmodule DatemWeb.AccessLive.Vehicles do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Vehicles
-        <:subtitle>Registered vehicles, each identified by a GIAI windscreen tag</:subtitle>
-        <:actions>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+      <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+        <.pass_header
+          icon="hero-truck"
+          title="Vehicles"
+          subtitle="Registered vehicles, each identified by a GIAI windscreen tag"
+        >
           <.button phx-click="new">Register a vehicle</.button>
-        </:actions>
-      </.header>
+        </.pass_header>
 
-      <.table id="vehicles" rows={@vehicles}>
-        <:col :let={v} label="Plate">{v.plate}</:col>
-        <:col :let={v} label="Make/Model">
-          {[v.make, v.model] |> Enum.reject(&is_nil/1) |> Enum.join(" ")}
-        </:col>
-        <:col :let={v} label="GIAI"><code class="text-xs">{v.gs1_identifier.value}</code></:col>
-        <:action :let={v}>
-          <.link phx-click="show_qr" phx-value-id={v.id}>Show QR</.link>
-        </:action>
-        <:empty>No vehicles yet. Register one with the button above.</:empty>
-      </.table>
-
+        <.table id="vehicles" rows={@vehicles}>
+          <:col :let={v} label="Plate">{v.plate}</:col>
+          <:col :let={v} label="Make/Model">
+            {[v.make, v.model] |> Enum.reject(&is_nil/1) |> Enum.join(" ")}
+          </:col>
+          <:col :let={v} label="GIAI"><code class="text-xs">{v.gs1_identifier.value}</code></:col>
+          <:action :let={v}>
+            <.link phx-click="show_qr" phx-value-id={v.id}>Show QR</.link>
+          </:action>
+          <:empty>No vehicles yet. Register one with the button above.</:empty>
+        </.table>
+      </div>
       <div
         :if={@qr_vehicle}
         class="my-4 flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4"

@@ -16,17 +16,14 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
   alias Datem.Ticketing
 
   @impl true
-  def render(assigns) do
-    ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Scan types
-        <:subtitle>Checkpoints operators can scan at, and the rules for each</:subtitle>
-        <:actions>
-          <.button phx-click="new">Add a scan type</.button>
-          <.link navigate={~p"/checkpoints"}><.button>Start scanning</.button></.link>
-        </:actions>
-      </.header>
+ def render(assigns) do
+  ~H"""
+  <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+    <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+      <.pass_header icon="hero-adjustments-horizontal" title="Scan types" subtitle="Checkpoints operators can scan at, and the rules for each">
+        <.button phx-click="new">Add a scan type</.button>
+        <.link navigate={~p"/checkpoints"}><.button variant="secondary">Start scanning</.button></.link>
+      </.pass_header>
 
       <.table id="scan-types" rows={@scan_types}>
         <:col :let={st} label="Name">{st.name}</:col>
@@ -52,77 +49,52 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
         </:action>
         <:empty>No scan types yet. Define your first checkpoint with the button above.</:empty>
       </.table>
+    </div>
 
-      <.modal
-        :if={@show_form}
-        id="scan-type-modal"
-        show
-        class="max-w-2xl"
-        on_cancel={JS.push("close_form")}
-      >
-        <.header>{if @editing, do: "Edit scan type", else: "Add a scan type"}</.header>
+    <.modal :if={@show_form} id="scan-type-modal" show class="max-w-2xl" on_cancel={JS.push("close_form")}>
+      <.header>{if @editing, do: "Edit scan type", else: "Add a scan type"}</.header>
 
-        <.form for={@form} id="scan_type_form" phx-submit="save" phx-change="validate">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <.input field={@form[:name]} type="text" label="Name" required />
-            <.input
-              :if={!@editing}
-              name="scan_type[scope]"
-              id="scan_type_scope"
-              value={@scope_value}
-              type="select"
-              label="Event or site"
-              prompt="Choose where this checkpoint lives"
-              options={@scope_options}
-              required
-            />
-            <.input field={@form[:active_from]} type="datetime-local" label="Opens at (optional)" />
-            <.input field={@form[:active_to]} type="datetime-local" label="Closes at (optional)" />
-          </div>
+      <.form for={@form} id="scan_type_form" phx-submit="save" phx-change="validate">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <.input field={@form[:name]} type="text" label="Name" required />
+          <.input
+            :if={!@editing}
+            name="scan_type[scope]"
+            id="scan_type_scope"
+            value={@scope_value}
+            type="select"
+            label="Event or site"
+            prompt="Choose where this checkpoint lives"
+            options={@scope_options}
+            required
+          />
+          <.input field={@form[:active_from]} type="datetime-local" label="Opens at (optional)" />
+          <.input field={@form[:active_to]} type="datetime-local" label="Closes at (optional)" />
+        </div>
 
-          <.inputs_for :let={rules} field={@form[:rules]}>
-            <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-              <p class="mb-3 text-sm font-medium text-gray-900">Rules</p>
+        <.inputs_for :let={rules} field={@form[:rules]}>
+          <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+            <p class="mb-3 text-sm font-medium text-gray-900">Rules</p>
 
-              <.input
-                field={rules[:once_per_subject]}
-                type="checkbox"
-                label="Once per attendee (a second scan is a duplicate)"
-              />
-              <.input
-                field={rules[:requires_check_in]}
-                type="checkbox"
-                label="Requires the attendee to be checked in to the event"
-              />
+            <.input field={rules[:once_per_subject]} type="checkbox" label="Once per attendee (a second scan is a duplicate)" />
+            <.input field={rules[:requires_check_in]} type="checkbox" label="Requires the attendee to be checked in to the event" />
 
-              <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                <.input
-                  field={rules[:requires_prior_scan_type_id]}
-                  type="select"
-                  label="Requires a prior scan at"
-                  prompt="No prior scan required"
-                  options={@prior_scan_options}
-                />
-                <.input
-                  field={rules[:allowed_ticket_type_ids]}
-                  type="select"
-                  multiple
-                  label="Allowed ticket types (none selected = all)"
-                  options={@ticket_type_options}
-                />
-              </div>
+            <div class="mt-3 grid gap-4 sm:grid-cols-2">
+              <.input field={rules[:requires_prior_scan_type_id]} type="select" label="Requires a prior scan at" prompt="No prior scan required" options={@prior_scan_options} />
+              <.input field={rules[:allowed_ticket_type_ids]} type="select" multiple label="Allowed ticket types (none selected = all)" options={@ticket_type_options} />
             </div>
-          </.inputs_for>
-
-          <div class="mt-4 flex gap-3">
-            <.button phx-disable-with="Saving...">Save</.button>
-            <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
           </div>
-        </.form>
-      </.modal>
-    </Layouts.app>
-    """
-  end
+        </.inputs_for>
+
+        <div class="mt-4 flex gap-3">
+          <.button phx-disable-with="Saving...">Save</.button>
+          <.button type="button" variant="secondary" phx-click="close_form">Cancel</.button>
+        </div>
+      </.form>
+    </.modal>
+  </Layouts.app>
+  """
+end
 
   @impl true
   def mount(_params, _session, socket) do
@@ -270,9 +242,14 @@ defmodule DatemWeb.ScanningLive.ScanTypes do
   defp window_label(%ScanType{active_from: from, active_to: to}) do
     "#{format_time(from)} – #{format_time(to)}"
   end
+@nairobi_offset_seconds 3 * 60 * 60
 
-  defp format_time(nil), do: "…"
-  defp format_time(datetime), do: Calendar.strftime(datetime, "%d %b %H:%M")
+defp to_nairobi(%DateTime{} = dt), do: DateTime.add(dt, @nairobi_offset_seconds, :second)
+defp to_nairobi(%NaiveDateTime{} = ndt), do: NaiveDateTime.add(ndt, @nairobi_offset_seconds, :second)
+
+defp format_time(nil), do: "…"
+defp format_time(datetime), do: datetime |> to_nairobi() |> Calendar.strftime("%d %b %H:%M")
+
 
   defp rule_labels(%ScanType{rules: nil}), do: []
 

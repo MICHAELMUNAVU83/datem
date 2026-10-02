@@ -23,14 +23,18 @@ defmodule DatemWeb.ReportingLive.Exports do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Exports
-        <:subtitle>CSVs are built in the background — download them here when ready</:subtitle>
-        <:actions>
-          <.button navigate={~p"/reports/access"} variant="secondary">New access export</.button>
-        </:actions>
-      </.header>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+      <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+        <.pass_header
+          icon="hero-identification"
+          title="  Exports"
+          subtitle="CSVs are built in the background — download them here when ready"
+        >
+
+         <.button navigate={~p"/reports/access"} variant="secondary">New access export</.button>
+
+        </.pass_header>
+
 
       <.table id="exports" rows={@exports}>
         <:col :let={export} label="Export">{Reporting.export_label(export.kind)}</:col>
@@ -53,6 +57,7 @@ defmodule DatemWeb.ReportingLive.Exports do
         </:action>
         <:empty>No exports yet. Request one from a report.</:empty>
       </.table>
+      </div>
     </Layouts.app>
     """
   end

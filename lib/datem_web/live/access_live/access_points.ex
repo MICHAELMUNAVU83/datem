@@ -9,29 +9,30 @@ defmodule DatemWeb.AccessLive.AccessPoints do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.header>
-        Access points
-        <:subtitle>Gates and checkpoints, each identified by a GLN extension</:subtitle>
-        <:actions>
+    <Layouts.app flash={@flash} current_scope={@current_scope} max_width="max-w-full">
+      <div class="mb-6 overflow-hidden rounded-xl border border-blue-100">
+        <.pass_header
+          icon="hero-map-pin"
+          title="Access points"
+          subtitle="Gates and checkpoints, each identified by a GLN extension"
+        >
           <.button :if={@sites != []} phx-click="new">Add an access point</.button>
-        </:actions>
-      </.header>
+        </.pass_header>
 
-      <p :if={@sites == []} class="mb-4 text-sm text-gray-500">
-        Add a site first before creating access points.
-      </p>
+        <p :if={@sites == []} class="mb-4 text-sm text-gray-500">
+          Add a site first before creating access points.
+        </p>
 
-      <.table id="access-points" rows={@access_points}>
-        <:col :let={ap} label="Name">{ap.name}</:col>
-        <:col :let={ap} label="Site">{ap.site.name}</:col>
-        <:col :let={ap} label="GLN"><code class="text-xs">{ap.gln}</code></:col>
-        <:action :let={ap}>
-          <.link phx-click="edit" phx-value-id={ap.id}>Edit</.link>
-        </:action>
-        <:empty>No access points yet. Add your first one with the button above.</:empty>
-      </.table>
-
+        <.table id="access-points" rows={@access_points}>
+          <:col :let={ap} label="Name">{ap.name}</:col>
+          <:col :let={ap} label="Site">{ap.site.name}</:col>
+          <:col :let={ap} label="GLN"><code class="text-xs">{ap.gln}</code></:col>
+          <:action :let={ap}>
+            <.link phx-click="edit" phx-value-id={ap.id}>Edit</.link>
+          </:action>
+          <:empty>No access points yet. Add your first one with the button above.</:empty>
+        </.table>
+      </div>
       <.modal :if={@show_form} id="access-point-modal" show on_cancel={JS.push("close_form")}>
         <.header>{if @editing, do: "Edit access point", else: "Add an access point"}</.header>
 

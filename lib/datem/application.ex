@@ -13,6 +13,7 @@ defmodule Datem.Application do
       {DNSCluster, query: Application.get_env(:datem, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Datem.PubSub},
       {Oban, Application.fetch_env!(:datem, Oban)},
+      {Finch, name: Datem.Finch},
       # Start a worker by calling: Datem.Worker.start_link(arg)
       # {Datem.Worker, arg},
       # Start to serve requests, typically the last entry

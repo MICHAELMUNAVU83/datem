@@ -7,7 +7,7 @@ defmodule DatemWeb.UserLive.Registration do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+     <Layouts.auth flash={@flash}>
       <div class="mx-auto max-w-sm">
         <div class="text-center">
           <.header>
@@ -46,7 +46,7 @@ defmodule DatemWeb.UserLive.Registration do
           </.button>
         </.form>
       </div>
-    </Layouts.app>
+    </Layouts.auth>
     """
   end
 

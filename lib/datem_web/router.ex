@@ -64,6 +64,17 @@ defmodule DatemWeb.Router do
       live "/exports", ReportingLive.Exports, :index
       live "/organization/members", OrganizationLive.Members, :index
       live "/organization/settings", OrganizationLive.Settings, :edit
+
+      live "/passes/employees", PassesLive.EmployeePasses, :index
+      live "/passes/items", PassesLive.ItemPasses, :index
+      live "/passes/employee/:token", PassesLive.EmployeePassDecision, :show
+      live "/passes/item/:token", PassesLive.ItemPassDecision, :show
+      live "/passes/cars", PassesLive.CarPasses, :index
+      live "/passes/car/:token", PassesLive.CarPassDecision, :show
+      live "/scan-history", AccessLive.ScanHistory, :index
+
+      live "/organization/employees", OrganizationLive.Employees, :index
+      live "/admin/organizations", AdminLive.Organizations, :index
       live "/sites", AccessLive.Sites, :index
       live "/access-points", AccessLive.AccessPoints, :index
       live "/visitors", AccessLive.Visitors, :index
@@ -73,8 +84,11 @@ defmodule DatemWeb.Router do
       live "/scan", AccessLive.ScanPicker, :index
       live "/scan/:id", AccessLive.Scan, :show
       live "/events", TicketingLive.Events, :index
+      live "/events/:id/attendees", TicketingLive.Attendees, :index
       live "/events/:id", TicketingLive.EventShow, :show
       live "/events/:id/scan", TicketingLive.Scan, :show
+      live "/events/:id/content", TicketingLive.EventContent, :index
+      live "/events/:id/schedule", TicketingLive.EventSchedule, :index
       live "/scan-types", ScanningLive.ScanTypes, :index
       live "/checkpoints", ScanningLive.ScanPicker, :index
       live "/checkpoints/:id", ScanningLive.Scan, :show
@@ -102,7 +116,10 @@ defmodule DatemWeb.Router do
       live "/users/log-in/:token", UserLive.Confirmation, :new
       live "/invitations/:token", OrganizationLive.AcceptInvitation, :new
       live "/visit/:token", AccessLive.PreRegistration, :new
+      live "/ticket/:gsrn", TicketingLive.PublicTicket, :show
       live "/join/:token", TicketingLive.Join, :new
+      live "/passes/employee/:token/:action", PassesLive.EmployeePassDecision, :new
+      live "/passes/item/:token/:action", PassesLive.ItemPassDecision, :new
     end
 
     post "/users/log-in", UserSessionController, :create
